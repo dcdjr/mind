@@ -18,4 +18,6 @@ def test_mind_doctor_runs(capsys):
 
     assert exit_code == 0
     assert "Mind doctor" in captured.out
+    assert "Config: OK" in captured.out
     assert "Workspace: OK" in captured.out
+    assert "Default model: gemma4:e2b" in captured.out
