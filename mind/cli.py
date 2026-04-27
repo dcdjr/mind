@@ -8,19 +8,25 @@ from mind import __version__
 APP_NAME = "Mind"
 APP_DESCRIPTION = "A lightweight local-first personal AI assistant."
 
+
 def ensure_workspace() -> Path:
+    """Create Mind's controlled workspace if it does not already exist."""
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)
     return workspace
 
+
 def print_home() -> None:
+    """Show the default landing output for the bare `mind` command."""
     ensure_workspace()
     print(APP_NAME)
     print(APP_DESCRIPTION)
     print()
     print(f"Status: v{__version__} skeleton installed.")
 
+
 def print_doctor() -> None:
+    """Show basic setup checks without depending on future features."""
     workspace = ensure_workspace()
 
     print("Mind doctor")
@@ -30,7 +36,9 @@ def print_doctor() -> None:
     print("Database: not implemented yet")
     print("Ollama: not implemented yet")
 
+
 def build_parser() -> argparse.ArgumentParser:
+    """Define Mind's public command-line interface in one place."""
     parser = argparse.ArgumentParser(
         prog="mind",
         description=APP_DESCRIPTION,
@@ -45,7 +53,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
+
 def main(argv: list[str] | None = None) -> int:
+    """Parse CLI arguments, route to the selected command, and return an exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -55,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print_home()
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
