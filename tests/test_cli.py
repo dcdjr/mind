@@ -1,4 +1,13 @@
+from pathlib import Path
+
 from mind.cli import main
+from mind.config import (
+    AssistantConfig,
+    Config,
+    MemoryConfig,
+    ModelConfig,
+    PathConfig,
+)
 
 
 def test_mind_home_runs(capsys):
@@ -20,12 +29,12 @@ def test_mind_doctor_runs(capsys):
     assert "Mind doctor" in captured.out
     assert "Config: OK" in captured.out
     assert "Workspace: OK" in captured.out
-    assert "Default model: gemma4:e2b" in captured.out
+    assert "Default model: gemma4:e4b" in captured.out
 
 
 def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch):
     """The `mind ask` command should route the prompt to the LLM layer and print the response."""
-    def fake_ask(config, prompt):
+    def fake_ask(config, prompt, workspace_context=None):
         assert prompt == "hello"
         return "fake response"
 
@@ -36,3 +45,46 @@ def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch):
 
     assert exit_code == 0
     assert "fake response" in captured.out
+
+def test_mind_ask_with_file_passes_workspace_context(capsys, monkeypatch, tmp_path: Path):
+    """The `mind ask --file` command should read a workspace file and pass its contents to the LLM layer."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    notes_file = workspace / "notes.txt"
+    notes_file.write_text("These are workspace notes.", encoding="utf-8")
+
+    test_config = Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=workspace,
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+    def fake_ask(config, prompt, workspace_context=None):
+        assert config == test_config
+        assert prompt == "summarize this"
+        assert workspace_context == "These are workspace notes."
+        return "fake summary"
+
+    monkeypatch.setattr("mind.cli.load_config", lambda: test_config)
+    monkeypatch.setattr("mind.cli.ask", fake_ask)
+
+    exit_code = main(["ask", "summarize this", "--file", "notes.txt"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "fake summary" in captured.out

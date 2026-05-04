@@ -11,5 +11,5 @@ def test_load_config_reads_basic_settings():
     assert config.assistant.name == "Mind"
     assert config.paths.workspace == Path("workspace")
     assert config.model.provider == "ollama"
-    assert config.model.default == "gemma4:e2b"
+    assert config.model.default == "gemma4:e4b"
     assert config.memory.auto_memory is True

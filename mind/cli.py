@@ -2,22 +2,19 @@ from __future__ import annotations
 
 
 import argparse
+
+
 from pathlib import Path
-
-
-from mind import __version__
-from mind.config import Config, load_config
-from mind.llm import ask
 
 
 import urllib.request
 import urllib.error
 
 
-def ensure_workspace(workspace: Path) -> Path:
-    """Create Mind's controlled workspace if it does not already exist."""
-    workspace.mkdir(exist_ok=True)
-    return workspace
+from mind import __version__
+from mind.config import Config, load_config
+from mind.llm import ask
+from mind.workspace import ensure_workspace, read_workspace_file
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -78,6 +75,12 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
     ask_parser.add_argument(
         "prompt",
         type=str,
+        help="This is the prompt to give Mind."
+    )
+    ask_parser.add_argument(
+        "--file",
+        type=str,
+        help="Optional argument to add context to the single prompt."
     )
 
     return parser
@@ -94,7 +97,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "ask":
-        res = ask(config, args.prompt)
+        file_contents = read_workspace_file(config, Path(args.file)) if args.file else None
+        res = ask(config, args.prompt, file_contents)
         print(res)
         return 0
 
