@@ -21,3 +21,18 @@ def test_mind_doctor_runs(capsys):
     assert "Config: OK" in captured.out
     assert "Workspace: OK" in captured.out
     assert "Default model: gemma4:e2b" in captured.out
+
+
+def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch):
+    """The `mind ask` command should route the prompt to the LLM layer and print the response."""
+    def fake_ask(config, prompt):
+        assert prompt == "hello"
+        return "fake response"
+
+    monkeypatch.setattr("mind.cli.ask", fake_ask)
+
+    exit_code = main(["ask", "hello"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "fake response" in captured.out

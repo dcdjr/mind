@@ -12,10 +12,9 @@ Implemented:
 
 - `mind`
 - `mind doctor`
+- `mind ask <prompt>`
 
-Not implemented yet:
-
-- local model chat
-- memory
-- workspace file scanning
-- system inspection
+Requirements:
+- Python 3.11+
+- Ollama running locally
+- configured model available
