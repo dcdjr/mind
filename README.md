@@ -13,6 +13,7 @@ Implemented:
 - `mind`
 - `mind doctor`
 - `mind ask <prompt>`
+- basic assistant identity prompt
 
 Requirements:
 - Python 3.11+
