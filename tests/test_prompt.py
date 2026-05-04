@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 from mind.config import load_config
 from mind.prompt import build_messages, build_system_prompt
 

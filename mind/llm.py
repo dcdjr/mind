@@ -1,7 +1,9 @@
 from ollama import Client
 
+
 from mind.config import Config
 from mind.prompt import build_messages
+
 
 def ask(config: Config, prompt: str) -> str:
     

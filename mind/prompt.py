@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from mind.config import Config
 
 

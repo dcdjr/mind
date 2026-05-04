@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+
 import argparse
 from pathlib import Path
+
 
 from mind import __version__
 from mind.config import Config, load_config
 from mind.llm import ask
 
+
 import urllib.request
 import urllib.error
+
 
 def ensure_workspace(workspace: Path) -> Path:
     """Create Mind's controlled workspace if it does not already exist."""

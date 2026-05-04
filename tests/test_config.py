@@ -1,6 +1,8 @@
 from pathlib import Path
 
+
 from mind.config import load_config
+
 
 def test_load_config_reads_basic_settings():
     """Config loading should turn TOML settings into typed Python objects."""

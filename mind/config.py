@@ -6,12 +6,12 @@ assistant identity, and memory behavior.
 
 from __future__ import annotations
 
+
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_CONFIG_PATH = Path("configs/config.toml")
-
 
 
 @dataclass(frozen=True)
