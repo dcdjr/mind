@@ -19,7 +19,12 @@ def list_workspace_files(config: Config) -> list[Path]:
 
     # rglob('*') finds everything recursively
     # Filter for files only so Mind doesn't try to "read" a directory
-    files = [f.relative_to(workspace) for f in workspace.rglob('*') if f.is_file()]
+    # Nest in sorted() so output is deterministic
+    files = sorted(
+        f.relative_to(workspace)
+        for f in workspace.rglob('*')
+        if f.is_file()
+    )
 
     return files if files else []
 

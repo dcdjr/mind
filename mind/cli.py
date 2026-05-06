@@ -14,7 +14,7 @@ import urllib.error
 from mind import __version__
 from mind.config import Config, load_config
 from mind.llm import ask
-from mind.workspace import ensure_workspace, read_workspace_file
+from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -24,6 +24,21 @@ def is_ollama_running(config: Config) -> bool:
             return response.getcode() == 200
     except (urllib.error.URLError, ConnectionRefusedError, TimeoutError):
         return False
+
+
+def print_workspace_files(config: Config) -> None:
+    """Print all files inside Mind's workspace as relative paths."""
+    files = list_workspace_files(config)
+
+    if not files:
+        print("Workspace is empty.")
+        return
+
+    print("Workspace files:")
+    print()
+
+    for file in files:
+        print(file)
 
 
 def print_home(config: Config) -> None:
@@ -80,7 +95,13 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
     ask_parser.add_argument(
         "--file",
         type=str,
-        help="Optional argument to add context to the single prompt."
+        help="Optional argument to add context to the single prompt. (Only allows files within Mind's workspace)"
+    )
+
+    # Add files command
+    subparsers.add_parser(
+        "files",
+        help="List all files in Mind's workspace.",
     )
 
     return parser
@@ -102,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         print(res)
         return 0
 
+    if args.command == "files":
+        print_workspace_files(config)
+        return 0
+
+    
     print_home(config)
     return 0
 

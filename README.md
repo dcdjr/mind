@@ -13,6 +13,8 @@ Implemented:
 - `mind`
 - `mind doctor`
 - `mind ask <prompt>`
+- `mind ask <prompt> --file <workspace-relative-path>`
+- `mind files`
 - basic assistant identity prompt
 
 Requirements:

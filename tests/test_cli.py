@@ -46,6 +46,7 @@ def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch):
     assert exit_code == 0
     assert "fake response" in captured.out
 
+
 def test_mind_ask_with_file_passes_workspace_context(capsys, monkeypatch, tmp_path: Path):
     """The `mind ask --file` command should read a workspace file and pass its contents to the LLM layer."""
     workspace = tmp_path / "workspace"
@@ -88,3 +89,75 @@ def test_mind_ask_with_file_passes_workspace_context(capsys, monkeypatch, tmp_pa
 
     assert exit_code == 0
     assert "fake summary" in captured.out
+
+
+def test_mind_files_prints_empty_workspace(capsys, monkeypatch, tmp_path: Path):
+    """The `mind files` command should report when the workspace has no files."""
+    test_config = Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=tmp_path / "workspace",
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+    monkeypatch.setattr("mind.cli.load_config", lambda: test_config)
+
+    exit_code = main(["files"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Workspace is empty." in captured.out
+
+
+def test_mind_files_prints_relative_file_paths(capsys, monkeypatch, tmp_path: Path):
+    """The `mind files` command should print workspace files as relative paths."""
+    workspace = tmp_path / "workspace"
+    nested_dir = workspace / "projects"
+    nested_dir.mkdir(parents=True)
+
+    (workspace / "notes.txt").write_text("notes", encoding="utf-8")
+    (nested_dir / "mind.md").write_text("mind notes", encoding="utf-8")
+
+    test_config = Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=workspace,
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+    monkeypatch.setattr("mind.cli.load_config", lambda: test_config)
+
+    exit_code = main(["files"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Workspace files:" in captured.out
+    assert "notes.txt" in captured.out
+    assert "projects/mind.md" in captured.out
+    assert str(workspace.resolve()) not in captured.out
