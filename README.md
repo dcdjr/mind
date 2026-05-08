@@ -2,11 +2,11 @@
 
 Mind is a lightweight local-first personal AI assistant.
 
-It is designed to run on your own machine, remember useful context, inspect files inside its workspace, and answer questions about the system it lives on.
+It is designed to run on your own machine, inspect files inside a controlled workspace, answer questions about its local environment, and eventually support persistent memory and custom tools.
 
-## Current status
+## Current Status
 
-v0.1 skeleton.
+Mind is currently a v0.1 command-line prototype.
 
 Implemented:
 
@@ -15,9 +15,28 @@ Implemented:
 - `mind ask <prompt>`
 - `mind ask <prompt> --file <workspace-relative-path>`
 - `mind files`
-- basic assistant identity prompt
+- Basic assistant identity prompt
+- Workspace-relative file access
 
-Requirements:
+## Requirements
+
 - Python 3.11+
 - Ollama running locally
-- configured model available
+- A configured local model available through Ollama
+
+## Purpose
+
+Mind is not meant to be a thin wrapper around an API. The goal is to build a local-first assistant architecture that stays understandable, extensible, and safe.
+
+The project is being developed in stages:
+
+1. Basic CLI and local model interaction
+2. Safe workspace file access
+3. Better context construction
+4. Persistent memory
+5. Custom tool execution
+6. Optional integrations for email, web search, project workflows, and automation
+
+## Development Notes
+
+The current priority is correctness and architecture over feature volume. Each feature should be small enough to understand, test, and extend without turning the project into a messy agent framework.
