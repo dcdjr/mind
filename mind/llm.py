@@ -1,19 +1,24 @@
-from ollama import Client
+from __future__ import annotations
 
+from ollama import Client
 
 from mind.config import Config
 from mind.prompt import build_messages
 
 
-def ask(config: Config, prompt: str, workspace_context=None) -> str:
-    
+def complete(config: Config, messages: list[dict[str, str]]) -> str:
+    """Send a prepared message list to the configured local model."""
     client = Client(host=config.model.base_url)
 
     response = client.chat(
         model=config.model.default,
-        messages=build_messages(config, prompt, workspace_context),
+        messages=messages,
     )
 
-    res = response["message"]["content"]
+    return response["message"]["content"]
 
-    return res
+
+def ask(config: Config, prompt: str, workspace_context: str | None = None) -> str:
+    """Send a single prompt to the configured local model."""
+    messages = build_messages(config, prompt, workspace_context)
+    return complete(config, messages)

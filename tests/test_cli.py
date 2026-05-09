@@ -161,3 +161,17 @@ def test_mind_files_prints_relative_file_paths(capsys, monkeypatch, tmp_path: Pa
     assert "notes.txt" in captured.out
     assert "projects/mind.md" in captured.out
     assert str(workspace.resolve()) not in captured.out
+
+def test_mind_chat_routes_to_chat_runner(monkeypatch):
+    called = False
+
+    def fake_run_chat(config):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("mind.cli.run_chat", fake_run_chat)
+
+    exit_code = main(["chat"])
+
+    assert exit_code == 0
+    assert called is True

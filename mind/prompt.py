@@ -45,3 +45,16 @@ def build_messages(config: Config, user_prompt: str, workspace_context=None) -> 
             "content": user_prompt,
         },
     ]
+
+
+def build_initial_chat_messages(
+    config: Config,
+    workspace_context: str | None = None,
+) -> list[dict[str, str]]:
+    """Build the starting message list for an interactive chat session."""
+    return [
+        {
+            "role": "system",
+            "content": build_system_prompt(config, workspace_context),
+        }
+    ]

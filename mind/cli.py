@@ -13,8 +13,9 @@ import urllib.error
 
 from mind import __version__
 from mind.config import Config, load_config
-from mind.llm import ask
+from mind.llm import ask, complete
 from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
+from mind.prompt import build_initial_chat_messages
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -24,6 +25,50 @@ def is_ollama_running(config: Config) -> bool:
             return response.getcode() == 200
     except (urllib.error.URLError, ConnectionRefusedError, TimeoutError):
         return False
+
+def run_chat(config: Config) -> None:
+    """Run an interactive terminal chat session with short-term message history."""
+    messages = build_initial_chat_messages(config)
+
+    print("Mind chat. Type /exit or /quit to quit.")
+    print()
+
+    while True:
+        try:
+            user_input = input("mind> ")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            print("Exiting Mind chat.")
+            break
+
+        user_input = user_input.strip()
+
+        if not user_input:
+            continue
+
+        if user_input in {"/exit", "/quit"}:
+            print("Exiting Mind chat.")
+            break
+
+        messages.append(
+            {
+                "role": "user",
+                "content": user_input,
+            }
+        )
+
+        response = complete(config, messages)
+
+        messages.append(
+            {
+                "role": "assistant",
+                "content": response,
+            }
+        )
+
+        print()
+        print(response)
+        print()
 
 
 def print_workspace_files(config: Config) -> None:
@@ -104,6 +149,12 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="List all files in Mind's workspace.",
     )
 
+    # Add chat command
+    subparsers.add_parser(
+        "chat",
+        help="Start an interactive Mind chat session.",
+    )
+
     return parser
 
 
@@ -127,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
         print_workspace_files(config)
         return 0
 
+    if args.command == "chat":
+        run_chat(config)
+        return 0
     
     print_home(config)
     return 0
