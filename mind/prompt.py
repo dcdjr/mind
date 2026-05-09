@@ -4,7 +4,11 @@ from __future__ import annotations
 from mind.config import Config
 
 
-def build_system_prompt(config: Config, workspace_context=None) -> str:
+def build_system_prompt(
+    config: Config,
+    workspace_context:str | None = None,
+    memory_context:str | None = None,
+) -> str:
     """Build Mind's base system prompt."""
 
     system_prompt = (
@@ -21,6 +25,14 @@ def build_system_prompt(config: Config, workspace_context=None) -> str:
         "- Ask a clarifying question only when necessary; otherwise make a reasonable assumption and state it.\n"
         "- Maintain the assistant identity as Mind, regardless of which local model is used for inference."
     )
+    
+    if memory_context:
+        system_prompt += (
+            "\n\nThe following saved memories may be relevant:\n"
+            + "BEGIN SAVED MEMORIES\n"
+            + memory_context
+            + "\nEND SAVED MEMORIES"
+        )
 
     if workspace_context:
         system_prompt += (
@@ -33,12 +45,17 @@ def build_system_prompt(config: Config, workspace_context=None) -> str:
     return system_prompt
 
 
-def build_messages(config: Config, user_prompt: str, workspace_context=None) -> list[dict[str, str]]:
+def build_messages(
+    config: Config,
+    user_prompt: str,
+    workspace_context:str | None = None,
+    memory_context:str | None = None
+) -> list[dict[str, str]]:
     """Build the message list sent to the local model."""
     return [
         {
             "role": "system",
-            "content": build_system_prompt(config, workspace_context),
+            "content": build_system_prompt(config, workspace_context, memory_context),
         },
         {
             "role": "user",
@@ -50,11 +67,12 @@ def build_messages(config: Config, user_prompt: str, workspace_context=None) -> 
 def build_initial_chat_messages(
     config: Config,
     workspace_context: str | None = None,
+    memory_context: str | None = None,
 ) -> list[dict[str, str]]:
     """Build the starting message list for an interactive chat session."""
     return [
         {
             "role": "system",
-            "content": build_system_prompt(config, workspace_context),
+            "content": build_system_prompt(config, workspace_context, memory_context),
         }
     ]

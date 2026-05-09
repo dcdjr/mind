@@ -18,7 +18,12 @@ def complete(config: Config, messages: list[dict[str, str]]) -> str:
     return response["message"]["content"]
 
 
-def ask(config: Config, prompt: str, workspace_context: str | None = None) -> str:
+def ask(
+    config: Config,
+    prompt: str,
+    workspace_context: str | None = None,
+    memory_context:str | None = None,
+) -> str:
     """Send a single prompt to the configured local model."""
-    messages = build_messages(config, prompt, workspace_context)
+    messages = build_messages(config, prompt, workspace_context, memory_context)
     return complete(config, messages)

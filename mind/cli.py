@@ -16,7 +16,7 @@ from mind.config import Config, load_config
 from mind.llm import ask, complete
 from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
 from mind.prompt import build_initial_chat_messages
-from mind.memory import add_memory, init_db, list_memories
+from mind.memory import add_memory, format_memories_for_prompt, list_memories
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -29,7 +29,8 @@ def is_ollama_running(config: Config) -> bool:
 
 def run_chat(config: Config) -> None:
     """Run an interactive terminal chat session with short-term message history."""
-    messages = build_initial_chat_messages(config)
+    memory_context = build_memory_context(config)
+    messages = build_initial_chat_messages(config, memory_context=memory_context)
 
     print("Mind chat. Type /exit or /quit to quit.")
     print()
@@ -70,6 +71,17 @@ def run_chat(config: Config) -> None:
         print()
         print(response)
         print()
+
+
+def build_memory_context(config: Config) -> str | None:
+    """Load recent saved memories and format them for the prompt."""
+    if not config.memory.auto_memory:
+        return None
+
+    memories = list_memories(config)
+    recent_memories = memories[-config.memory.max_relevant_memories:]
+
+    return format_memories_for_prompt(recent_memories)
 
 
 def print_workspace_files(config: Config) -> None:
@@ -188,7 +200,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "ask":
         file_contents = read_workspace_file(config, Path(args.file)) if args.file else None
-        res = ask(config, args.prompt, file_contents)
+        memory_context = build_memory_context(config)
+        res = ask(config, args.prompt, file_contents, memory_context)
         print(res)
         return 0
 

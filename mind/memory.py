@@ -8,6 +8,19 @@ from datetime import datetime, timezone
 from mind.config import Config
 
 
+def format_memories_for_prompt(memories: list[str]) -> str | None:
+    """Format saved memories for inclusion in the system prompt"""
+    if not memories:
+        return None
+
+    lines = ["Saved memories about the user and project:"]
+
+    for memory in memories:
+        lines.append(f"- {memory}")
+
+    return "\n".join(lines)
+
+
 def init_db(config: Config) -> None:
     """Create Mind's SQLite database and required tables if they do not exist."""
     db_path = config.paths.database

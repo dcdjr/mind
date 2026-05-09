@@ -34,7 +34,7 @@ def test_mind_doctor_runs(capsys):
 
 def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch):
     """The `mind ask` command should route the prompt to the LLM layer and print the response."""
-    def fake_ask(config, prompt, workspace_context=None):
+    def fake_ask(config, prompt, workspace_context=None, memory_context=None):
         assert prompt == "hello"
         return "fake response"
 
@@ -75,7 +75,7 @@ def test_mind_ask_with_file_passes_workspace_context(capsys, monkeypatch, tmp_pa
         ),
     )
 
-    def fake_ask(config, prompt, workspace_context=None):
+    def fake_ask(config, prompt, workspace_context=None, memory_context=None):
         assert config == test_config
         assert prompt == "summarize this"
         assert workspace_context == "These are workspace notes."
