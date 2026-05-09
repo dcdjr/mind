@@ -162,6 +162,7 @@ def test_mind_files_prints_relative_file_paths(capsys, monkeypatch, tmp_path: Pa
     assert "projects/mind.md" in captured.out
     assert str(workspace.resolve()) not in captured.out
 
+
 def test_mind_chat_routes_to_chat_runner(monkeypatch):
     called = False
 
@@ -175,3 +176,111 @@ def test_mind_chat_routes_to_chat_runner(monkeypatch):
 
     assert exit_code == 0
     assert called is True
+
+
+def test_mind_remember_stores_memory(capsys, monkeypatch, tmp_path: Path):
+    """The `mind remember` command should store a memory."""
+    test_config = Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=tmp_path / "workspace",
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+    stored = []
+
+    def fake_add_memory(config, text):
+        assert config == test_config
+        stored.append(text)
+
+    monkeypatch.setattr("mind.cli.load_config", lambda: test_config)
+    monkeypatch.setattr("mind.cli.add_memory", fake_add_memory)
+
+    exit_code = main(["remember", "The project is named Mind."])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert stored == ["The project is named Mind."]
+    assert "Memory saved." in captured.out
+
+
+def test_mind_memories_prints_empty_message(capsys, monkeypatch, tmp_path: Path):
+    """The `mind memories` command should report when no memories exist."""
+    test_config = Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=tmp_path / "workspace",
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+    monkeypatch.setattr("mind.cli.load_config", lambda: test_config)
+    monkeypatch.setattr("mind.cli.list_memories", lambda config: [])
+
+    exit_code = main(["memories"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "No memories stored." in captured.out
+
+
+def test_mind_memories_prints_stored_memories(capsys, monkeypatch, tmp_path: Path):
+    """The `mind memories` command should print stored memories as a numbered list."""
+    test_config = Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=tmp_path / "workspace",
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+    monkeypatch.setattr("mind.cli.load_config", lambda: test_config)
+    monkeypatch.setattr(
+        "mind.cli.list_memories",
+        lambda config: ["First memory.", "Second memory."],
+    )
+
+    exit_code = main(["memories"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Memories:" in captured.out
+    assert "1. First memory." in captured.out
+    assert "2. Second memory." in captured.out

@@ -16,6 +16,7 @@ from mind.config import Config, load_config
 from mind.llm import ask, complete
 from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
 from mind.prompt import build_initial_chat_messages
+from mind.memory import add_memory, init_db, list_memories
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -155,6 +156,23 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="Start an interactive Mind chat session.",
     )
 
+    # Add remember command
+    remember_parser = subparsers.add_parser(
+        "remember",
+        help="Store a memory.",
+    )
+    remember_parser.add_argument(
+        "text",
+        type=str,
+        help="The memory text to store.",
+    )
+
+    # Add memories command
+    subparsers.add_parser(
+        "memories",
+        help="List stored memories.",
+    )
+
     return parser
 
 
@@ -180,6 +198,26 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "chat":
         run_chat(config)
+        return 0
+
+    if args.command == "remember":
+        add_memory(config, args.text)
+        print("Memory saved.")
+        return 0
+    
+    if args.command == "memories":
+        memories = list_memories(config)
+
+        if not memories:
+            print("No memories stored.")
+            return 0
+
+        print("Memories:")
+        print()
+
+        for index, memory in enumerate(memories, start=1):
+            print(f"{index}. {memory}.")
+
         return 0
     
     print_home(config)
