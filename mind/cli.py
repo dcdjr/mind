@@ -16,7 +16,7 @@ from mind.config import Config, load_config
 from mind.llm import ask, complete
 from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
 from mind.prompt import build_initial_chat_messages
-from mind.memory import add_memory, format_memories_for_prompt, list_memories
+from mind.memory import add_memory, delete_memory, format_memories_for_prompt, list_memories
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -122,7 +122,7 @@ def print_doctor(config: Config) -> None:
     print(ollama_ok)
     print(f"Default model: {config.model.default}")
     print(f"Workspace: OK ({workspace.resolve()})")
-    print("Database: not implemented yet")
+    print(f"Database: OK ({config.paths.database.resolve()})")
 
 
 def build_parser(config: Config) -> argparse.ArgumentParser:
@@ -185,6 +185,17 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="List stored memories.",
     )
 
+    # Add forget command
+    forget_parser = subparsers.add_parser(
+    "forget",
+    help="Delete a saved memory by ID.",
+    )
+    forget_parser.add_argument(
+        "memory_id",
+        type=int,
+        help="The ID of the memory to delete.",
+    )
+
     return parser
 
 
@@ -228,8 +239,18 @@ def main(argv: list[str] | None = None) -> int:
         print("Memories:")
         print()
 
-        for index, memory in enumerate(memories, start=1):
-            print(f"{index}. {memory}.")
+        for memory_id, memory_text in memories:
+            print(f"{memory_id}. {memory_text}")
+
+        return 0
+
+    if args.command == "forget":
+        deleted = delete_memory(config, args.memory_id)
+
+        if deleted:
+            print("Memory deleted.")
+        else:
+            print(f"No memory found with ID {args.memory_id}.")
 
         return 0
     

@@ -17,6 +17,7 @@ Implemented:
 - `mind files`
 - Basic assistant identity prompt
 - Workspace-relative file access
+- Basic manual memory system + context injection
 
 ## Requirements
 

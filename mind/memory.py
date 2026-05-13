@@ -8,15 +8,15 @@ from datetime import datetime, timezone
 from mind.config import Config
 
 
-def format_memories_for_prompt(memories: list[str]) -> str | None:
+def format_memories_for_prompt(memories: list[tuple[int, str]]) -> str | None:
     """Format saved memories for inclusion in the system prompt"""
     if not memories:
         return None
 
     lines = ["Saved memories about the user and project:"]
 
-    for memory in memories:
-        lines.append(f"- {memory}")
+    for _, memory_text in memories:
+        lines.append(f"- {memory_text}")
 
     return "\n".join(lines)
 
@@ -54,17 +54,37 @@ def add_memory(config: Config, text: str) -> None:
         )
 
 
-def list_memories(config: Config) -> list[str]:
+def list_memories(config: Config) -> list[tuple[int, str]]:
     """Return all stored memories in insertion order."""
     init_db(config)
 
     with sqlite3.connect(config.paths.database) as conn:
         rows = conn.execute(
             """
-            SELECT text
+            SELECT id, text
             FROM memories
             ORDER BY id ASC
             """
         ).fetchall()
 
-    return [row[0] for row in rows]
+    return [(row[0], row[1]) for row in rows]
+
+
+def delete_memory(config: Config, memory_id: int) -> bool:
+    """
+    Delete a memory by database ID.
+
+    Returns True if a memory was deleted, otherwise False.
+    """
+    init_db(config)
+
+    with sqlite3.connect(config.paths.database) as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM memories
+            WHERE id = ?
+            """,
+            (memory_id,),
+        )
+
+        return cursor.rowcount > 0
