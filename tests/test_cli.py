@@ -277,3 +277,50 @@ def test_build_memory_context_uses_most_recent_memories(monkeypatch, tmp_path: P
     assert "Old memory." not in context
     assert "Recent memory one." in context
     assert "Recent memory two." in context
+
+
+def test_maybe_extract_and_store_memories_saves_extracted_memories(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    stored = []
+
+    monkeypatch.setattr(
+        cli,
+        "extract_memories",
+        lambda config, user_input, response: ["User wants Mind to stay local-first."],
+    )
+
+    def fake_add_memory(config, text):
+        stored.append(text)
+
+    monkeypatch.setattr(cli, "add_memory", fake_add_memory)
+
+    cli.maybe_extract_and_store_memories(
+        test_config,
+        "My project is Mind and I want it local-first.",
+        "Got it.",
+    )
+
+    assert stored == ["User wants Mind to stay local-first."]
+
+
+def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled(monkeypatch, tmp_path: Path):
+    base_config = make_test_config(tmp_path)
+    test_config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=MemoryConfig(auto_memory=False, max_relevant_memories=8),
+    )
+
+    called = False
+
+    def fake_extract_memories(config, user_input, response):
+        nonlocal called
+        called = True
+        return ["Should not be stored."]
+
+    monkeypatch.setattr(cli, "extract_memories", fake_extract_memories)
+
+    cli.maybe_extract_and_store_memories(test_config, "hello", "hi")
+
+    assert called is False

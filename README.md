@@ -2,7 +2,7 @@
 
 Mind is a lightweight local-first personal AI assistant.
 
-It is designed to run on your own machine, inspect files inside a controlled workspace, answer questions about its local environment, and eventually support persistent memory and custom tools.
+It is designed to run on your own machine, inspect files inside a controlled workspace, answer questions about its local environment, use persistent memory, and eventually support custom tools.
 
 ## Current Status
 
@@ -18,6 +18,7 @@ Implemented:
 - Basic assistant identity prompt
 - Workspace-relative file access
 - Basic manual memory system + context injection
+- Experimental automatic memory extraction during chat
 
 ## Requirements
 
@@ -37,7 +38,3 @@ The project is being developed in stages:
 4. Persistent memory
 5. Custom tool execution
 6. Optional integrations for email, web search, project workflows, and automation
-
-## Development Notes
-
-The current priority is correctness and architecture over feature volume. Each feature should be small enough to understand, test, and extend without turning the project into a messy agent framework.

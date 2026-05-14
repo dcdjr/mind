@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 from mind.config import load_config
 
 

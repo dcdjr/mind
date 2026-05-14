@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 from mind.config import (
     AssistantConfig,
     Config,
@@ -15,6 +14,7 @@ from mind.memory import (
     init_db,
     list_memories,
 )
+
 
 def make_test_config(tmp_path: Path) -> Config:
     return Config(

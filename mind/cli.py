@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-
 import argparse
-
 
 from pathlib import Path
 
-
 import urllib.request
 import urllib.error
-
 
 from mind import __version__
 from mind.config import Config, load_config
@@ -17,6 +13,7 @@ from mind.llm import ask, complete
 from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
 from mind.prompt import build_initial_chat_messages
 from mind.memory import add_memory, delete_memory, format_memories_for_prompt, list_memories
+from mind.memory_extractor import extract_memories
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -26,6 +23,25 @@ def is_ollama_running(config: Config) -> bool:
             return response.getcode() == 200
     except (urllib.error.URLError, ConnectionRefusedError, TimeoutError):
         return False
+
+
+def maybe_extract_and_store_memories(
+    config: Config,
+    user_input: str,
+    response: str,
+) -> None:
+    """Extract and save durable memories from one chat turn."""
+    if not config.memory.auto_memory:
+        return
+    
+    try:
+        memories = extract_memories(config, user_input, response)
+    except Exception:
+        return
+
+    for memory in memories:
+        add_memory(config, memory)
+
 
 def run_chat(config: Config) -> None:
     """Run an interactive terminal chat session with short-term message history."""
@@ -71,6 +87,8 @@ def run_chat(config: Config) -> None:
         print()
         print(response)
         print()
+
+        maybe_extract_and_store_memories(config, user_input, response)
 
 
 def build_memory_context(config: Config) -> str | None:
