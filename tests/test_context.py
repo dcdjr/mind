@@ -109,7 +109,8 @@ def test_build_context_includes_workspace_context_when_file_path_is_given(tmp_pa
 
     context = context_builder.build_context(test_config, Path("notes.txt"))
 
-    assert context.workspace_context == "These are workspace notes."
+    assert "These are workspace notes." in context.workspace_context
+    assert "notes.txt" in context.workspace_context
 
 
 def test_build_context_returns_no_workspace_context_when_no_file_path_is_given(tmp_path: Path):

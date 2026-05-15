@@ -34,9 +34,15 @@ def build_context(
 
     workspace_context = None
     if file_path is not None:
-        workspace_context = read_workspace_file(config, file_path)
+        contents = read_workspace_file(config, file_path)
+        workspace_context = format_workspace_file_context(file_path, contents)
 
     return ContextBundle(
         memory_context=memory_context,
         workspace_context=workspace_context,
     )
+
+
+def format_workspace_file_context(file_path: Path, contents: str) -> str:
+    """Format a workspace file for inclusion in the model prompt."""
+    return f"FILE: {file_path}\n---\n{contents}"
