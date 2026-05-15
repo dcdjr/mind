@@ -12,3 +12,4 @@ def test_load_config_reads_basic_settings():
     assert config.model.provider == "ollama"
     assert config.model.default == "gemma4:e4b"
     assert config.memory.auto_memory is True
+    assert config.context.max_workspace_chars == 12000

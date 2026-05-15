@@ -89,6 +89,9 @@ default = "gemma4:e4b"
 [memory]
 auto_memory = true
 max_relevant_memories = 8
+
+[context]
+max_workspace_chars = 12000
 ```
 
 ## Usage

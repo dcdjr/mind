@@ -4,6 +4,7 @@ import mind.chat as chat
 from mind.config import (
     AssistantConfig,
     Config,
+    ContextConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -30,6 +31,9 @@ def make_test_config(tmp_path: Path) -> Config:
         memory=MemoryConfig(
             auto_memory=True,
             max_relevant_memories=8,
+        ),
+        context=ContextConfig(
+            max_workspace_chars=12000,
         ),
     )
 
@@ -156,6 +160,7 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
             auto_memory=False,
             max_relevant_memories=8,
         ),
+        context=base_config.context,
     )
 
     called = False

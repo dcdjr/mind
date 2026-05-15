@@ -8,6 +8,9 @@ from mind.memory import format_memories_for_prompt, list_memories
 from mind.workspace import read_workspace_file
 
 
+TRUNCATION_MARKER = "\n[Workspace context truncated]"
+
+
 @dataclass(frozen=True)
 class ContextBundle:
     memory_context: str | None
@@ -30,6 +33,19 @@ def build_memory_context(config: Config) -> str | None:
     return format_memories_for_prompt(recent_memories)
 
 
+def truncate_workspace_context(context: str, max_chars: int) -> str:
+    """Truncate workspace context to fit the configured character budget."""
+    if len(context) <= max_chars:
+        return context
+
+    available_chars = max_chars - len(TRUNCATION_MARKER)
+
+    if available_chars <= 0:
+        return TRUNCATION_MARKER.strip()
+
+    return context[:available_chars].rstrip() + TRUNCATION_MARKER
+
+
 def build_workspace_context(
     config: Config,
     file_paths: list[Path] | None = None,
@@ -44,7 +60,12 @@ def build_workspace_context(
         contents = read_workspace_file(config, file_path)
         file_blocks.append(format_workspace_file_context(file_path, contents))
 
-    return "\n\n".join(file_blocks)
+    workspace_context = "\n\n".join(file_blocks)
+
+    return truncate_workspace_context(
+        workspace_context,
+        config.context.max_workspace_chars,
+    )
 
 
 def build_context(

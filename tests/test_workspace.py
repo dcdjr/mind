@@ -5,6 +5,7 @@ import pytest
 from mind.config import (
     AssistantConfig,
     Config,
+    ContextConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -32,6 +33,9 @@ def test_config(tmp_path: Path) -> Config:
         memory=MemoryConfig(
             auto_memory=True,
             max_relevant_memories=8,
+        ),
+        context=ContextConfig(
+            max_workspace_chars=12000,
         ),
     )
 

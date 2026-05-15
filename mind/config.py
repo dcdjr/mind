@@ -40,11 +40,17 @@ class MemoryConfig:
 
 
 @dataclass(frozen=True)
+class ContextConfig:
+    max_workspace_chars: int
+
+
+@dataclass(frozen=True)
 class Config:
     assistant: AssistantConfig
     paths: PathConfig
     model: ModelConfig
     memory: MemoryConfig
+    context: ContextConfig
 
 
 def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
@@ -73,5 +79,8 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
         memory=MemoryConfig(
             auto_memory=raw["memory"]["auto_memory"],
             max_relevant_memories=raw["memory"]["max_relevant_memories"],
+        ),
+        context=ContextConfig(
+            max_workspace_chars=raw["context"]["max_workspace_chars"]
         ),
     )

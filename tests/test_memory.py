@@ -3,6 +3,7 @@ from pathlib import Path
 from mind.config import (
     AssistantConfig,
     Config,
+    ContextConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -35,6 +36,9 @@ def make_test_config(tmp_path: Path) -> Config:
         memory=MemoryConfig(
             auto_memory=True,
             max_relevant_memories=8,
+        ),
+        context=ContextConfig(
+            max_workspace_chars=12000,
         ),
     )
 
@@ -80,6 +84,7 @@ def test_list_memories_returns_memories_in_insertion_order(tmp_path: Path):
         (2, "Second memory."),
     ]
 
+
 def test_delete_memory_removes_existing_memory(tmp_path: Path):
     """delete_memory should remove a memory by database ID."""
     config = make_test_config(tmp_path)
@@ -103,6 +108,7 @@ def test_delete_memory_returns_false_for_missing_id(tmp_path: Path):
 
     assert deleted is False
     assert list_memories(config) == [(1, "Only memory.")]
+
 
 def test_format_memories_for_prompt_uses_memory_text_only():
     """Memory prompt formatting should include memory text, not raw database tuples."""

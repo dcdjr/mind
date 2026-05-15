@@ -4,6 +4,7 @@ import mind.context as context_builder
 from mind.config import (
     AssistantConfig,
     Config,
+    ContextConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -30,6 +31,9 @@ def make_test_config(tmp_path: Path) -> Config:
             auto_memory=True,
             max_relevant_memories=8,
         ),
+        context=ContextConfig(
+            max_workspace_chars=12000,
+        ),
     )
 
 
@@ -45,6 +49,7 @@ def test_build_context_includes_most_recent_memories(monkeypatch, tmp_path: Path
             auto_memory=True,
             max_relevant_memories=2,
         ),
+        context=base_config.context,
     )
 
     monkeypatch.setattr(
@@ -80,6 +85,7 @@ def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
             auto_memory=False,
             max_relevant_memories=8,
         ),
+        context=base_config.context,
     )
 
     called = False
@@ -131,3 +137,30 @@ def test_build_context_returns_no_workspace_context_when_no_file_paths_are_given
     context = context_builder.build_context(test_config)
 
     assert context.workspace_context is None
+
+
+def test_build_workspace_context_truncates_when_context_is_too_large(tmp_path: Path):
+    """Workspace context should be truncated when it exceeds the configured character limit."""
+    base_config = make_test_config(tmp_path)
+
+    test_config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=ContextConfig(
+            max_workspace_chars=50,
+        ),
+    )
+
+    workspace = test_config.paths.workspace
+    workspace.mkdir(parents=True)
+
+    notes_file = workspace / "notes.txt"
+    notes_file.write_text("A" * 100, encoding="utf-8")
+
+    context = context_builder.build_context(test_config, [Path("notes.txt")])
+
+    assert context.workspace_context is not None
+    assert len(context.workspace_context) <= test_config.context.max_workspace_chars
+    assert "[Workspace context truncated]" in context.workspace_context
