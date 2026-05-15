@@ -62,9 +62,9 @@ def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch, tmp_path: Path):
     """The `mind ask` command should route the prompt to the LLM layer and print the response."""
     test_config = make_test_config(tmp_path)
 
-    def fake_build_context(config, file_path=None):
+    def fake_build_context(config, file_paths=None):
         assert config == test_config
-        assert file_path is None
+        assert file_paths is None
 
         return ContextBundle(
             memory_context=None,
@@ -90,23 +90,27 @@ def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch, tmp_path: Path):
     assert "fake response" in captured.out
 
 
-def test_mind_ask_with_file_passes_context_to_llm(capsys, monkeypatch, tmp_path: Path):
-    """The `mind ask --file` command should pass built context to the LLM layer."""
+def test_mind_ask_with_files_passes_context_to_llm(capsys, monkeypatch, tmp_path: Path):
+    """The `mind ask --files` command should pass built context to the LLM layer."""
     test_config = make_test_config(tmp_path)
 
-    def fake_build_context(config, file_path=None):
+    def fake_build_context(config, file_paths=None):
         assert config == test_config
-        assert file_path == Path("notes.txt")
+        assert file_paths == [Path("notes.txt"), Path("plan.md")]
 
         return ContextBundle(
             memory_context="Saved memory context.",
-            workspace_context="These are workspace notes.",
+            workspace_context=(
+                "FILE: notes.txt\n---\nThese are workspace notes.\n\n"
+                "FILE: plan.md\n---\n# Project Plan"
+            ),
         )
 
     def fake_ask(config, prompt, workspace_context=None, memory_context=None):
         assert config == test_config
-        assert prompt == "summarize this"
-        assert workspace_context == "These are workspace notes."
+        assert prompt == "summarize these"
+        assert "FILE: notes.txt" in workspace_context
+        assert "FILE: plan.md" in workspace_context
         assert memory_context == "Saved memory context."
 
         return "fake summary"
@@ -115,7 +119,9 @@ def test_mind_ask_with_file_passes_context_to_llm(capsys, monkeypatch, tmp_path:
     monkeypatch.setattr(cli, "build_context", fake_build_context)
     monkeypatch.setattr(cli, "ask", fake_ask)
 
-    exit_code = cli.main(["ask", "summarize this", "--file", "notes.txt"])
+    exit_code = cli.main(
+        ["ask", "summarize these", "--files", "notes.txt", "plan.md"]
+    )
     captured = capsys.readouterr()
 
     assert exit_code == 0

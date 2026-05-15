@@ -97,8 +97,8 @@ def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
     assert called is False
 
 
-def test_build_context_includes_workspace_context_when_file_path_is_given(tmp_path: Path):
-    """Workspace context should include file contents when a workspace file path is provided."""
+def test_build_context_includes_workspace_context_when_file_paths_are_given(tmp_path: Path):
+    """Workspace context should include formatted contents for each provided workspace file."""
     test_config = make_test_config(tmp_path)
 
     workspace = test_config.paths.workspace
@@ -107,13 +107,24 @@ def test_build_context_includes_workspace_context_when_file_path_is_given(tmp_pa
     notes_file = workspace / "notes.txt"
     notes_file.write_text("These are workspace notes.", encoding="utf-8")
 
-    context = context_builder.build_context(test_config, Path("notes.txt"))
+    plan_file = workspace / "plan.md"
+    plan_file.write_text("# Project Plan\nBuild Mind.", encoding="utf-8")
 
+    context = context_builder.build_context(
+        test_config,
+        [Path("notes.txt"), Path("plan.md")],
+    )
+
+    assert context.workspace_context is not None
+
+    assert "FILE: notes.txt" in context.workspace_context
     assert "These are workspace notes." in context.workspace_context
-    assert "notes.txt" in context.workspace_context
+
+    assert "FILE: plan.md" in context.workspace_context
+    assert "# Project Plan\nBuild Mind." in context.workspace_context
 
 
-def test_build_context_returns_no_workspace_context_when_no_file_path_is_given(tmp_path: Path):
+def test_build_context_returns_no_workspace_context_when_no_file_paths_are_given(tmp_path: Path):
     """Workspace context should be None when no file path is provided."""
     test_config = make_test_config(tmp_path)
 

@@ -35,10 +35,10 @@ def build_system_prompt(
 
     if workspace_context:
         system_prompt += (
-            f"\nThe user provided this workspace file as context:\n"
-            + "BEGIN WORKSPACE FILE\n"
+            "\n\nThe user provided the following workspace file context:\n"
+            + "BEGIN WORKSPACE CONTEXT\n"
             + workspace_context
-            + "\nEND WORKSPACE FILE"
+            + "\nEND WORKSPACE CONTEXT"
         )
 
     return system_prompt

@@ -15,7 +15,7 @@ Implemented:
 - `mind`
 - `mind doctor`
 - `mind ask <prompt>`
-- `mind ask <prompt> --file <workspace-relative-path>`
+- `mind ask <prompt> --files <workspace-relative-path> [more-files...]`
 - `mind files`
 - `mind chat`
 - `mind remember <text>`
@@ -114,7 +114,7 @@ mind ask "What should I work on next?"
 Ask using a file from the workspace as context:
 
 ```bash
-mind ask "Summarize this file" --file notes.txt
+mind ask "Summarize this file" --files notes.txt
 ```
 
 List files inside the controlled workspace:
@@ -155,12 +155,12 @@ Mind only reads files from the configured workspace directory:
 workspace/
 ```
 
-File paths passed to `--file` are interpreted as workspace-relative paths.
+File paths passed to `--files` are interpreted as workspace-relative paths.
 
 For example:
 
 ```bash
-mind ask "Summarize this" --file project-notes.md
+mind ask "Summarize this" --files project-notes.md
 ```
 
 reads:

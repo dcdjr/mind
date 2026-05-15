@@ -92,9 +92,13 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="This is the prompt to give Mind."
     )
     ask_parser.add_argument(
-        "--file",
+        "--files",
+        nargs="+",
         type=str,
-        help="Optional argument to add context to the single prompt. (Only allows files within Mind's workspace)"
+        help=(
+            "Optional workspace-relative file paths to add as context. "
+            "Example: --files notes.txt plan.md"
+        ),
     )
 
     # Add files command
@@ -151,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "ask":
-        context = build_context(config, Path(args.file) if args.file else None)
+        file_paths = [Path(file) for file in args.files] if args.files else None
+        context = build_context(config, file_paths)
 
         res = ask(
             config,
