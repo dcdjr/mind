@@ -13,6 +13,7 @@ from mind.memory import (
     format_memories_for_prompt,
     init_db,
     list_memories,
+    memory_exists,
 )
 
 
@@ -118,3 +119,21 @@ def test_format_memories_for_prompt_uses_memory_text_only():
     assert "- Second memory." in context
     assert "(1," not in context
     assert "(2," not in context
+
+
+def test_memory_exists_returns_true_for_existing_memory(tmp_path: Path):
+    """memory_exists should return True when the exact memory text exists."""
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "The project is named Mind.")
+
+    assert memory_exists(config, "The project is named Mind.") is True
+
+
+def test_memory_exists_returns_false_for_missing_memory(tmp_path: Path):
+    """memory_exists should return False when the exact memory text does not exist."""
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "The project is named Mind.")
+
+    assert memory_exists(config, "User prefers concise answers.") is False

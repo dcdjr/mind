@@ -86,3 +86,21 @@ def delete_memory(config: Config, memory_id: int) -> bool:
         )
 
         return cursor.rowcount > 0
+
+
+def memory_exists(config: Config, text: str) -> bool:
+    """Returns True if a memory with the same text already exists."""
+    init_db(config)
+
+    with sqlite3.connect(config.paths.database) as conn:
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM memories
+            WHERE text = ?
+            LIMIT 1
+            """,
+            (text,),
+        ).fetchone()
+
+    return row is not None

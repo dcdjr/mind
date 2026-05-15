@@ -3,7 +3,7 @@ from __future__ import annotations
 from mind.context import build_context
 from mind.llm import complete
 from mind.prompt import build_initial_chat_messages
-from mind.memory import add_memory
+from mind.memory import add_memory, memory_exists
 from mind.memory_extractor import extract_memories
 from mind.config import Config
 
@@ -23,7 +23,8 @@ def maybe_extract_and_store_memories(
         return
 
     for memory in memories:
-        add_memory(config, memory)
+        if not memory_exists(config, memory):
+            add_memory(config, memory)
 
 
 def run_chat(config: Config) -> None:

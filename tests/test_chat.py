@@ -170,3 +170,34 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
     chat.maybe_extract_and_store_memories(test_config, "hello", "hi")
 
     assert called is False
+
+
+def test_maybe_extract_and_store_memories_skips_duplicate_memories(monkeypatch, tmp_path: Path):
+    """Automatic memory extraction should not store an extracted memory that already exists."""
+    test_config = make_test_config(tmp_path)
+    stored = []
+
+    monkeypatch.setattr(
+        chat,
+        "extract_memories",
+        lambda config, user_input, response: ["User wants Mind to stay local-first."],
+    )
+
+    monkeypatch.setattr(
+        chat,
+        "memory_exists",
+        lambda config, text: text == "User wants Mind to stay local-first.",
+    )
+
+    def fake_add_memory(config, text):
+        stored.append(text)
+
+    monkeypatch.setattr(chat, "add_memory", fake_add_memory)
+
+    chat.maybe_extract_and_store_memories(
+        test_config,
+        "My project is Mind and I want it local-first.",
+        "Got it.",
+    )
+
+    assert stored == []
