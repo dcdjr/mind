@@ -8,6 +8,7 @@ from mind.config import (
     ModelConfig,
     PathConfig,
 )
+from mind.context import ContextBundle
 
 
 def make_test_config(tmp_path: Path) -> Config:
@@ -61,14 +62,26 @@ def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch, tmp_path: Path):
     """The `mind ask` command should route the prompt to the LLM layer and print the response."""
     test_config = make_test_config(tmp_path)
 
+    def fake_build_context(config, file_path=None):
+        assert config == test_config
+        assert file_path is None
+
+        return ContextBundle(
+            memory_context=None,
+            workspace_context=None,
+        )
+
     def fake_ask(config, prompt, workspace_context=None, memory_context=None):
         assert config == test_config
         assert prompt == "hello"
+        assert workspace_context is None
+        assert memory_context is None
+
         return "fake response"
 
     monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "build_context", fake_build_context)
     monkeypatch.setattr(cli, "ask", fake_ask)
-    monkeypatch.setattr(cli, "build_memory_context", lambda config: None, raising=False)
 
     exit_code = cli.main(["ask", "hello"])
     captured = capsys.readouterr()
@@ -77,25 +90,30 @@ def test_mind_ask_runs_with_mocked_llm(capsys, monkeypatch, tmp_path: Path):
     assert "fake response" in captured.out
 
 
-def test_mind_ask_with_file_passes_workspace_context(capsys, monkeypatch, tmp_path: Path):
-    """The `mind ask --file` command should read a workspace file and pass its contents to the LLM layer."""
+def test_mind_ask_with_file_passes_context_to_llm(capsys, monkeypatch, tmp_path: Path):
+    """The `mind ask --file` command should pass built context to the LLM layer."""
     test_config = make_test_config(tmp_path)
 
-    workspace = test_config.paths.workspace
-    workspace.mkdir(parents=True)
+    def fake_build_context(config, file_path=None):
+        assert config == test_config
+        assert file_path == Path("notes.txt")
 
-    notes_file = workspace / "notes.txt"
-    notes_file.write_text("These are workspace notes.", encoding="utf-8")
+        return ContextBundle(
+            memory_context="Saved memory context.",
+            workspace_context="These are workspace notes.",
+        )
 
     def fake_ask(config, prompt, workspace_context=None, memory_context=None):
         assert config == test_config
         assert prompt == "summarize this"
         assert workspace_context == "These are workspace notes."
+        assert memory_context == "Saved memory context."
+
         return "fake summary"
 
     monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "build_context", fake_build_context)
     monkeypatch.setattr(cli, "ask", fake_ask)
-    monkeypatch.setattr(cli, "build_memory_context", lambda config: None, raising=False)
 
     exit_code = cli.main(["ask", "summarize this", "--file", "notes.txt"])
     captured = capsys.readouterr()
@@ -141,7 +159,7 @@ def test_mind_files_prints_relative_file_paths(capsys, monkeypatch, tmp_path: Pa
 
 
 def test_mind_chat_routes_to_chat_runner(monkeypatch, tmp_path: Path):
-    """The `mind chat` command should route to the interactive chat runner."""
+    """The `mind chat` command should route to the chat module's runner."""
     test_config = make_test_config(tmp_path)
     called = False
 
@@ -246,81 +264,3 @@ def test_mind_forget_reports_missing_memory(capsys, monkeypatch, tmp_path: Path)
 
     assert exit_code == 0
     assert "No memory found with ID 999." in captured.out
-
-def test_build_memory_context_uses_most_recent_memories(monkeypatch, tmp_path: Path):
-    """Memory context should include only the most recent configured number of memories."""
-    base_config = make_test_config(tmp_path)
-
-    test_config = Config(
-        assistant=base_config.assistant,
-        paths=base_config.paths,
-        model=base_config.model,
-        memory=MemoryConfig(
-            auto_memory=True,
-            max_relevant_memories=2,
-        ),
-    )
-
-    monkeypatch.setattr(
-        cli,
-        "list_memories",
-        lambda config: [
-            (1, "Old memory."),
-            (2, "Recent memory one."),
-            (3, "Recent memory two."),
-        ],
-    )
-
-    context = cli.build_memory_context(test_config)
-
-    assert context is not None
-    assert "Old memory." not in context
-    assert "Recent memory one." in context
-    assert "Recent memory two." in context
-
-
-def test_maybe_extract_and_store_memories_saves_extracted_memories(monkeypatch, tmp_path: Path):
-    test_config = make_test_config(tmp_path)
-    stored = []
-
-    monkeypatch.setattr(
-        cli,
-        "extract_memories",
-        lambda config, user_input, response: ["User wants Mind to stay local-first."],
-    )
-
-    def fake_add_memory(config, text):
-        stored.append(text)
-
-    monkeypatch.setattr(cli, "add_memory", fake_add_memory)
-
-    cli.maybe_extract_and_store_memories(
-        test_config,
-        "My project is Mind and I want it local-first.",
-        "Got it.",
-    )
-
-    assert stored == ["User wants Mind to stay local-first."]
-
-
-def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled(monkeypatch, tmp_path: Path):
-    base_config = make_test_config(tmp_path)
-    test_config = Config(
-        assistant=base_config.assistant,
-        paths=base_config.paths,
-        model=base_config.model,
-        memory=MemoryConfig(auto_memory=False, max_relevant_memories=8),
-    )
-
-    called = False
-
-    def fake_extract_memories(config, user_input, response):
-        nonlocal called
-        called = True
-        return ["Should not be stored."]
-
-    monkeypatch.setattr(cli, "extract_memories", fake_extract_memories)
-
-    cli.maybe_extract_and_store_memories(test_config, "hello", "hi")
-
-    assert called is False

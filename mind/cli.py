@@ -9,11 +9,11 @@ import urllib.error
 
 from mind import __version__
 from mind.config import Config, load_config
-from mind.llm import ask, complete
-from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
-from mind.prompt import build_initial_chat_messages
-from mind.memory import add_memory, delete_memory, format_memories_for_prompt, list_memories
-from mind.memory_extractor import extract_memories
+from mind.llm import ask
+from mind.workspace import ensure_workspace, list_workspace_files
+from mind.memory import add_memory, delete_memory, list_memories
+from mind.context import build_context
+from mind.chat import run_chat
 
 
 def is_ollama_running(config: Config) -> bool:
@@ -23,83 +23,6 @@ def is_ollama_running(config: Config) -> bool:
             return response.getcode() == 200
     except (urllib.error.URLError, ConnectionRefusedError, TimeoutError):
         return False
-
-
-def maybe_extract_and_store_memories(
-    config: Config,
-    user_input: str,
-    response: str,
-) -> None:
-    """Extract and save durable memories from one chat turn."""
-    if not config.memory.auto_memory:
-        return
-    
-    try:
-        memories = extract_memories(config, user_input, response)
-    except Exception:
-        return
-
-    for memory in memories:
-        add_memory(config, memory)
-
-
-def run_chat(config: Config) -> None:
-    """Run an interactive terminal chat session with short-term message history."""
-    memory_context = build_memory_context(config)
-    messages = build_initial_chat_messages(config, memory_context=memory_context)
-
-    print("Mind chat. Type /exit or /quit to quit.")
-    print()
-
-    while True:
-        try:
-            user_input = input("mind> ")
-        except (EOFError, KeyboardInterrupt):
-            print()
-            print("Exiting Mind chat.")
-            break
-
-        user_input = user_input.strip()
-
-        if not user_input:
-            continue
-
-        if user_input in {"/exit", "/quit"}:
-            print("Exiting Mind chat.")
-            break
-
-        messages.append(
-            {
-                "role": "user",
-                "content": user_input,
-            }
-        )
-
-        response = complete(config, messages)
-
-        messages.append(
-            {
-                "role": "assistant",
-                "content": response,
-            }
-        )
-
-        print()
-        print(response)
-        print()
-
-        maybe_extract_and_store_memories(config, user_input, response)
-
-
-def build_memory_context(config: Config) -> str | None:
-    """Load recent saved memories and format them for the prompt."""
-    if not config.memory.auto_memory:
-        return None
-
-    memories = list_memories(config)
-    recent_memories = memories[-config.memory.max_relevant_memories:]
-
-    return format_memories_for_prompt(recent_memories)
 
 
 def print_workspace_files(config: Config) -> None:
@@ -228,9 +151,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "ask":
-        file_contents = read_workspace_file(config, Path(args.file)) if args.file else None
-        memory_context = build_memory_context(config)
-        res = ask(config, args.prompt, file_contents, memory_context)
+        context = build_context(config, Path(args.file) if args.file else None)
+
+        res = ask(
+            config,
+            args.prompt,
+            context.workspace_context,
+            context.memory_context,
+        )
         print(res)
         return 0
 

@@ -1,0 +1,121 @@
+from pathlib import Path
+
+import mind.context as context_builder
+from mind.config import (
+    AssistantConfig,
+    Config,
+    MemoryConfig,
+    ModelConfig,
+    PathConfig,
+)
+
+
+def make_test_config(tmp_path: Path) -> Config:
+    """Create an isolated test config so context tests do not touch real project state."""
+    return Config(
+        assistant=AssistantConfig(
+            name="Mind",
+            description="Test assistant",
+        ),
+        paths=PathConfig(
+            workspace=tmp_path / "workspace",
+            database=tmp_path / "data" / "mind.db",
+        ),
+        model=ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            default="gemma4:e4b",
+        ),
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=8,
+        ),
+    )
+
+
+def test_build_context_includes_most_recent_memories(monkeypatch, tmp_path: Path):
+    """Memory context should include only the most recent configured number of memories."""
+    base_config = make_test_config(tmp_path)
+
+    test_config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=MemoryConfig(
+            auto_memory=True,
+            max_relevant_memories=2,
+        ),
+    )
+
+    monkeypatch.setattr(
+        context_builder,
+        "list_memories",
+        lambda config: [
+            (1, "Old memory."),
+            (2, "Recent memory one."),
+            (3, "Recent memory two."),
+        ],
+    )
+
+    context = context_builder.build_context(test_config)
+
+    assert context.memory_context is not None
+    assert "Old memory." not in context.memory_context
+    assert "Recent memory one." in context.memory_context
+    assert "Recent memory two." in context.memory_context
+
+
+def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Memory context should be None when automatic memory is disabled."""
+    base_config = make_test_config(tmp_path)
+
+    test_config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=MemoryConfig(
+            auto_memory=False,
+            max_relevant_memories=8,
+        ),
+    )
+
+    called = False
+
+    def fake_list_memories(config):
+        nonlocal called
+        called = True
+        return [(1, "This should not be loaded.")]
+
+    monkeypatch.setattr(context_builder, "list_memories", fake_list_memories)
+
+    context = context_builder.build_context(test_config)
+
+    assert context.memory_context is None
+    assert called is False
+
+
+def test_build_context_includes_workspace_context_when_file_path_is_given(tmp_path: Path):
+    """Workspace context should include file contents when a workspace file path is provided."""
+    test_config = make_test_config(tmp_path)
+
+    workspace = test_config.paths.workspace
+    workspace.mkdir(parents=True)
+
+    notes_file = workspace / "notes.txt"
+    notes_file.write_text("These are workspace notes.", encoding="utf-8")
+
+    context = context_builder.build_context(test_config, Path("notes.txt"))
+
+    assert context.workspace_context == "These are workspace notes."
+
+
+def test_build_context_returns_no_workspace_context_when_no_file_path_is_given(tmp_path: Path):
+    """Workspace context should be None when no file path is provided."""
+    test_config = make_test_config(tmp_path)
+
+    context = context_builder.build_context(test_config)
+
+    assert context.workspace_context is None
