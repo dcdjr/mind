@@ -22,6 +22,7 @@ Implemented:
 - `mind remember <text>`
 - `mind memories`
 - `mind forget <memory-id>`
+- `mind tools`
 - Basic assistant identity prompt
 - Config-driven local model settings
 - Workspace-relative file access
@@ -158,6 +159,12 @@ Delete a memory by ID:
 
 ```bash
 mind forget 1
+```
+
+List available tools:
+
+```bash
+mind tools
 ```
 
 ## Workspace

@@ -13,6 +13,7 @@ from mind.cli.commands import (
     run_ask_command,
     run_chat_command,
     run_agent_command,
+    run_tools_command,
 )
 
 
@@ -102,6 +103,12 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The task to give Mind's tool-using agent.",
     )
 
+    # Add tools command
+    subparsers.add_parser(
+        "tools",
+        help="List tools currently available to Mind."
+    )
+
     return parser
 
 
@@ -134,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "agent":
         return run_agent_command(config, args.prompt)
+
+    if args.command == "tools":
+        return run_tools_command()
     
     return run_home_command(config)
 

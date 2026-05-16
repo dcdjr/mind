@@ -8,6 +8,7 @@ from mind.core.diagnostics import is_ollama_running
 from mind.runtime.ask import ask_once
 from mind.runtime.chat import run_chat
 from mind.agent import run_agent
+from mind.tools import TOOL_REGISTRY, ToolSpec
 
 
 def run_files_command(config: Config) -> int:
@@ -58,6 +59,7 @@ def run_doctor_command(config: Config) -> int:
 
 
 def run_remember_command(config: Config, text: str) -> int:
+    """Adds a memory to Mind's memory database."""
     add_memory(config, text)
     print("Memory saved.")
 
@@ -65,6 +67,7 @@ def run_remember_command(config: Config, text: str) -> int:
    
 
 def run_memories_command(config: Config) -> int:
+    """Lists all memories currently stored in Mind's memory database."""
     memories = list_memories(config)
 
     if not memories:
@@ -81,6 +84,7 @@ def run_memories_command(config: Config) -> int:
 
 
 def run_forget_command(config: Config, memory_id: int) -> int:
+    """Deletes a memory in Mind's memory database by id."""
     deleted = delete_memory(config, memory_id)
 
     if not deleted:
@@ -93,6 +97,7 @@ def run_forget_command(config: Config, memory_id: int) -> int:
 
 
 def run_ask_command(config: Config, prompt: str, files: list[str] | None) -> int:
+    """Give Mind a single prompt."""
     file_paths = [Path(file) for file in files] if files else None
     res = ask_once(config, prompt, file_paths)
     print(res)
@@ -101,13 +106,38 @@ def run_ask_command(config: Config, prompt: str, files: list[str] | None) -> int
 
 
 def run_chat_command(config: Config) -> int:
+    """Run a chat session with Mind."""
     run_chat(config)
 
     return 0
 
 
 def run_agent_command(config: Config, prompt: str) -> int:
+    """Run Mind's agent mode with controlled tool execution."""
     response = run_agent(config, prompt)
     print(response)
+
+    return 0
+
+
+def run_tools_command() -> int:
+    """List all tools currently available to Mind."""
+    if not TOOL_REGISTRY:
+        print("There are no available tools for Mind.")
+        return 0
+
+    print("Available tools:")
+    print()
+
+    def print_tool(spec: ToolSpec) -> None:
+        print(spec.name)
+        print(f"  Description: {spec.description}")
+        print(f"  Args: {spec.args_description}")
+        print(f"  Permission: {spec.permission}")
+        print()
+    
+    for _, spec in TOOL_REGISTRY.items():
+        if spec.available_to_agent:
+            print_tool(spec)         
 
     return 0

@@ -244,3 +244,22 @@ def test_mind_agent_routes_to_agent_command(monkeypatch, tmp_path: Path):
 
     assert exit_code == 0
     assert called is True
+
+
+def test_mind_tools_routes_to_tools_command(monkeypatch, tmp_path: Path):
+    """The `mind tools` command should route to the tools command."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_tools_command():
+        nonlocal called
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_tools_command", fake_run_tools_command)
+
+    exit_code = cli.main(["tools"])
+
+    assert exit_code == 0
+    assert called is True
