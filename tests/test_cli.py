@@ -223,3 +223,24 @@ def test_mind_forget_routes_to_forget_command(monkeypatch, tmp_path: Path):
 
     assert exit_code == 0
     assert called is True
+
+
+def test_mind_agent_routes_to_agent_command(monkeypatch, tmp_path: Path):
+    """The `mind agent` command should route the prompt to the agent command."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_agent_command(config, prompt):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "what files are in my workspace?"
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_agent_command", fake_run_agent_command)
+
+    exit_code = cli.main(["agent", "what files are in my workspace?"])
+
+    assert exit_code == 0
+    assert called is True

@@ -7,6 +7,7 @@ from mind.workspace import ensure_workspace, list_workspace_files
 from mind.diagnostics import is_ollama_running
 from mind.app import ask_once
 from mind.chat import run_chat
+from mind.agent import run_agent
 
 
 def run_files_command(config: Config) -> int:
@@ -101,5 +102,12 @@ def run_ask_command(config: Config, prompt: str, files: list[str] | None) -> int
 
 def run_chat_command(config: Config) -> int:
     run_chat(config)
+
+    return 0
+
+
+def run_agent_command(config: Config, prompt: str) -> int:
+    response = run_agent(config, prompt)
+    print(response)
 
     return 0

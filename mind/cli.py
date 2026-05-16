@@ -12,6 +12,7 @@ from mind.commands import (
     run_forget_command,
     run_ask_command,
     run_chat_command,
+    run_agent_command,
 )
 
 
@@ -90,6 +91,17 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The ID of the memory to delete.",
     )
 
+    # Add agent command
+    agent_parser = subparsers.add_parser(
+        "agent",
+        help="Give Mind a task and allow it to use safe internal tools.",
+    )
+    agent_parser.add_argument(
+        "prompt",
+        type=str,
+        help="The task to give Mind's tool-using agent.",
+    )
+
     return parser
 
 
@@ -119,6 +131,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "forget":
         return run_forget_command(config, args.memory_id)
+
+    if args.command == "agent":
+        return run_agent_command(config, args.prompt)
     
     return run_home_command(config)
 
