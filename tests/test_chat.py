@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import mind.chat as chat
+import mind.runtime.chat as chat
 from mind.core.config import (
     AssistantConfig,
     Config,

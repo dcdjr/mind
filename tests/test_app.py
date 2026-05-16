@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import mind.app as app
+import mind.runtime.ask as app
 from mind.core.config import (
     AssistantConfig,
     Config,

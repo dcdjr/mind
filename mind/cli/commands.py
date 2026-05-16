@@ -5,8 +5,8 @@ from mind.core.config import Config
 from mind.memory import add_memory, list_memories, delete_memory
 from mind.workspace import ensure_workspace, list_workspace_files
 from mind.core.diagnostics import is_ollama_running
-from mind.app import ask_once
-from mind.chat import run_chat
+from mind.runtime.ask import ask_once
+from mind.runtime.chat import run_chat
 from mind.agent import run_agent
 
 
