@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import mind.cli as cli
+import mind.cli.parser as cli
 from mind.core.config import (
     AssistantConfig,
     Config,
