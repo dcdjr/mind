@@ -1,13 +1,20 @@
 from mind.tools.registry import (
     TOOL_REGISTRY,
-    ToolFunction,
     format_available_tools,
     run_tool,
 )
 
+from mind.tools.spec import (
+    PermissionLevel,
+    ToolFunction,
+    ToolSpec,
+)
+
 __all__ = [
     "TOOL_REGISTRY",
-    "ToolFunction",
     "format_available_tools",
     "run_tool",
+    "PermissionLevel",
+    "ToolFunction",
+    "ToolSpec",
 ]

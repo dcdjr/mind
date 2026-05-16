@@ -9,7 +9,7 @@ from mind.core.config import (
     PathConfig,
 )
 from mind.memory import add_memory
-from mind.tools import run_tool
+from mind.tools import run_tool, TOOL_REGISTRY, ToolSpec, format_available_tools
 
 
 def make_test_config(tmp_path: Path) -> Config:
@@ -95,3 +95,43 @@ def test_memory_list_tool_lists_memories(tmp_path: Path):
 
     assert "Saved memories:" in result
     assert "- The project is named Mind." in result
+
+
+def test_tool_registry_values_are_tool_specs():
+    """Every registered tool should be described by a ToolSpec."""
+    for spec in TOOL_REGISTRY.values():
+        assert isinstance(spec, ToolSpec)
+
+
+def test_tool_registry_keys_match_tool_spec_names():
+    """Registry keys should match the ToolSpec name field."""
+    for tool_name, spec in TOOL_REGISTRY.items():
+        assert tool_name == spec.name
+
+
+def test_registered_tools_have_required_metadata():
+    """Every tool should include the metadata needed for prompts and future permissions."""
+    for spec in TOOL_REGISTRY.values():
+        assert spec.name
+        assert spec.description
+        assert spec.args_description
+        assert spec.permission in {
+            "read_only",
+            "external_read",
+            "local_write",
+            "external_write",
+            "dangerous",
+        }
+        assert callable(spec.function)
+
+
+def test_format_available_tools_uses_tool_spec_metadata():
+    """Available tool formatting should be generated from ToolSpec metadata."""
+    formatted_tools = format_available_tools()
+
+    assert "workspace.list_files" in formatted_tools
+    assert "List files in the workspace." in formatted_tools
+    assert "workspace.read_file" in formatted_tools
+    assert '{"path": "notes.txt"}' in formatted_tools
+    assert "internet.github_zen" in formatted_tools
+    assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
