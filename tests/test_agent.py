@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import mind.agent as agent
+import mind.agent.loop as agent
 from mind.core.config import (
     AssistantConfig,
     Config,
