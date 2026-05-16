@@ -3,8 +3,7 @@ from __future__ import annotations
 from mind.core.context import build_context
 from mind.core.llm import complete
 from mind.core.prompt import build_initial_chat_messages
-from mind.memory import add_memory, memory_exists
-from mind.memory_extractor import extract_memories
+from mind.memory import add_memory, memory_exists, extract_memories
 from mind.core.config import Config
 
 

@@ -1,4 +1,4 @@
-from mind.memory_extractor import parse_extracted_memories
+from mind.memory import parse_extracted_memories
 
 
 def test_parse_extracted_memories_parses_valid_json():
