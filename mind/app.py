@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mind.config import Config
-from mind.context import build_context
-from mind.llm import ask
+from mind.core.config import Config
+from mind.core.context import build_context
+from mind.core.llm import ask
 
 
 def ask_once(

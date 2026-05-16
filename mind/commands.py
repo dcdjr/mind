@@ -1,10 +1,10 @@
 from pathlib import Path
 
 from mind import __version__
-from mind.config import Config
+from mind.core.config import Config
 from mind.memory import add_memory, list_memories, delete_memory
 from mind.workspace import ensure_workspace, list_workspace_files
-from mind.diagnostics import is_ollama_running
+from mind.core.diagnostics import is_ollama_running
 from mind.app import ask_once
 from mind.chat import run_chat
 from mind.agent import run_agent

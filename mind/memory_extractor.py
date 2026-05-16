@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from mind.config import Config
-from mind.llm import complete
+from mind.core.config import Config
+from mind.core.llm import complete
 
 
 MAX_MEMORY_LENGTH = 300

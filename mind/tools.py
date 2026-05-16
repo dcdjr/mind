@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from mind.config import Config
+from mind.core.config import Config
 from mind.memory import list_memories
 from mind.workspace import list_workspace_files, read_workspace_file
 

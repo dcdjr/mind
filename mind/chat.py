@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from mind.context import build_context
-from mind.llm import complete
-from mind.prompt import build_initial_chat_messages
+from mind.core.context import build_context
+from mind.core.llm import complete
+from mind.core.prompt import build_initial_chat_messages
 from mind.memory import add_memory, memory_exists
 from mind.memory_extractor import extract_memories
-from mind.config import Config
+from mind.core.config import Config
 
 
 def maybe_extract_and_store_memories(

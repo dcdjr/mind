@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from mind.config import Config
+from mind.core.config import Config
 
 
 def format_memories_for_prompt(memories: list[tuple[int, str]]) -> str | None:

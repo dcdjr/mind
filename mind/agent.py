@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from mind.config import Config
-from mind.llm import complete
+from mind.core.config import Config
+from mind.core.llm import complete
 from mind.tools import format_available_tools, run_tool
 
 

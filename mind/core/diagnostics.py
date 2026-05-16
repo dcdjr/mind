@@ -1,7 +1,7 @@
 import urllib.request
 import urllib.error
 
-from mind.config import Config
+from mind.core.config import Config
 
 
 def is_ollama_running(config: Config) -> bool:

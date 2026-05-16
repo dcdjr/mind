@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mind.config import Config
+from mind.core.config import Config
 
 
 def build_system_prompt(

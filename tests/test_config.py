@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from mind.config import load_config
+from mind.core.config import load_config
 
 
 def test_load_config_reads_basic_settings():

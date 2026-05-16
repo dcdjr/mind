@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mind.config import Config
+from mind.core.config import Config
 
 
 def ensure_workspace(workspace: Path) -> Path:

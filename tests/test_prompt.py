@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from mind.config import load_config
-from mind.prompt import build_messages, build_system_prompt
+from mind.core.config import load_config
+from mind.core.prompt import build_messages, build_system_prompt
 
 
 def test_build_system_prompt_includes_mind_identity():

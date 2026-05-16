@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from mind.config import (
+from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,

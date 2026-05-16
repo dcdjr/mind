@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from ollama import Client
 
-from mind.config import Config
-from mind.prompt import build_messages
+from mind.core.config import Config
+from mind.core.prompt import build_messages
 
 
 def complete(config: Config, messages: list[dict[str, str]]) -> str:

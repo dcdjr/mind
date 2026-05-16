@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import mind.agent as agent
-from mind.config import (
+from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,

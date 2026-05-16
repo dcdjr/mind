@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import mind.chat as chat
-from mind.config import (
+from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,
@@ -9,7 +9,7 @@ from mind.config import (
     ModelConfig,
     PathConfig,
 )
-from mind.context import ContextBundle
+from mind.core.context import ContextBundle
 
 
 def make_test_config(tmp_path: Path) -> Config:

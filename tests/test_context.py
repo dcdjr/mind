@@ -1,7 +1,7 @@
 from pathlib import Path
 
-import mind.context as context_builder
-from mind.config import (
+import mind.core.context as context_builder
+from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,

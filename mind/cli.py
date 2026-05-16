@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from mind.config import Config, load_config
+from mind.core.config import Config, load_config
 from mind.commands import (
     run_files_command,
     run_home_command,

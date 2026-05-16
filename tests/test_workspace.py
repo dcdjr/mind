@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mind.config import (
+from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,
