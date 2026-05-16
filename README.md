@@ -1,14 +1,14 @@
 # Mind
 
-Mind is a lightweight local-first personal AI assistant.
+Mind is a lightweight local-first personal AI assistant runtime.
 
-It is designed to run on your own machine, use a local model through Ollama, read files from a controlled workspace, maintain persistent memory, and provide a foundation for future custom tools and automation.
+It is designed to run on your own machine, use a local model through Ollama, read files from a controlled workspace, maintain persistent memory, and expose a safe tool system for extending the assistant with custom Python capabilities.
 
-Mind is not meant to be a thin wrapper around an API. The goal is to build a local-first assistant architecture that stays understandable, extensible, and safe.
+Mind is not meant to be a thin wrapper around an API. The goal is to build a local-first assistant architecture that stays understandable, extensible, inspectable, and safe.
 
 ## Current Status
 
-Mind is currently a v0.1 command-line prototype.
+Mind is currently a v0.1 command-line prototype with a package-based internal architecture.
 
 Implemented:
 
@@ -18,6 +18,7 @@ Implemented:
 - `mind ask <prompt> --files <workspace-relative-path> [more-files...]`
 - `mind files`
 - `mind chat`
+- `mind agent <task>`
 - `mind remember <text>`
 - `mind memories`
 - `mind forget <memory-id>`
@@ -25,12 +26,15 @@ Implemented:
 - Config-driven local model settings
 - Workspace-relative file access
 - Safe workspace file reading
-- Centralized context builder
-- Basic manual memory system
+- Centralized context building
 - SQLite-backed persistent memory
 - Memory context injection into prompts
 - Experimental automatic memory extraction during chat
-- Unit tests for CLI routing, context building, memory, workspace access, prompt construction, and memory extraction parsing
+- Bounded tool-using agent loop
+- Tool registry for controlled Python capabilities
+- Workspace, memory, and internet tool modules
+- Read-only external API tool example
+- Unit tests for CLI routing, context building, memory, workspace access, prompt construction, agent behavior, and tool execution
 
 ## Requirements
 
@@ -114,7 +118,7 @@ Ask a one-shot question:
 mind ask "What should I work on next?"
 ```
 
-Ask using a file from the workspace as context:
+Ask using one or more files from the workspace as context:
 
 ```bash
 mind ask "Summarize this file" --files notes.txt
@@ -130,6 +134,12 @@ Start an interactive chat session:
 
 ```bash
 mind chat
+```
+
+Run the tool-using agent:
+
+```bash
+mind agent "What files are in my workspace?"
 ```
 
 Store a manual memory:
@@ -205,40 +215,76 @@ max_relevant_memories = 8
 
 This feature is experimental. It currently uses simple recent-memory retrieval, not semantic search or embeddings.
 
+## Agent and Tools
+
+Mind includes a simple bounded agent loop.
+
+The agent asks the local model to return one of two JSON response types:
+
+```json
+{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}
+```
+
+or:
+
+```json
+{"type": "final", "answer": "Your answer here."}
+```
+
+When the model requests a tool, Mind checks the tool name against a known registry, validates the basic argument shape, runs the approved Python function, feeds the text result back to the model, and then asks for either another tool call or a final answer.
+
+The current tool registry includes:
+
+```text
+workspace.list_files
+workspace.read_file
+memory.list
+internet.github_zen
+```
+
+The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists and how it runs.
+
 ## Architecture
 
-Mind is currently organized around a small layered architecture:
+Mind is currently organized around a package-based architecture:
 
 ```text
 CLI
 ↓
-Context Builder
+Runtime modes
+  - ask
+  - chat
+  - agent
 ↓
-Memory + Workspace
+Core infrastructure
+  - config
+  - context
+  - prompts
+  - diagnostics
+  - LLM client
 ↓
-Prompt Builder
+Agent loop
 ↓
-Local LLM Client
+Tool registry
 ↓
-Response
+Tools
+  - workspace
+  - memory
+  - internet
 ↓
-Automatic Memory Extractor
-↓
-SQLite
+Workspace / SQLite / External APIs
 ```
 
-Current module responsibilities:
+Current package responsibilities:
 
 ```text
-mind/cli.py              CLI parsing and command routing
-mind/chat.py             Interactive chat loop and automatic memory extraction
-mind/context.py          Memory/workspace context assembly
-mind/prompt.py           System prompt and message construction
-mind/llm.py              Ollama client calls
-mind/memory.py           SQLite-backed persistent memory
-mind/memory_extractor.py Model-output parsing for automatic memory extraction
-mind/workspace.py        Safe workspace file listing and reading
-mind/config.py           TOML config loading
+mind/cli/        CLI parser and command handlers
+mind/runtime/    ask and chat runtime flows
+mind/core/       config, context, prompts, diagnostics, and LLM client
+mind/agent/      bounded agent loop, protocol parsing, and agent prompts
+mind/tools/      tool registry and tool implementations
+mind/memory/     SQLite memory store and memory extraction
+mind/workspace/  safe workspace file access
 ```
 
 ## Testing
@@ -253,6 +299,7 @@ The tests currently cover:
 
 - CLI command routing
 - Context building
+- Ask runtime behavior
 - Chat loop behavior
 - Manual memory storage
 - Memory deletion
@@ -262,6 +309,10 @@ The tests currently cover:
 - Safe workspace file reading
 - Prompt construction
 - Config loading
+- Agent JSON parsing
+- Agent tool loop behavior
+- Tool registry behavior
+- Workspace and memory tools
 
 ## Development Roadmap
 
@@ -271,11 +322,14 @@ Planned development stages:
 2. Safe workspace file access
 3. Centralized context construction
 4. Persistent memory
-5. Memory cleanup and deduplication
-6. Improved workspace context support
-7. Custom tool execution
-8. Optional integrations for email, web search, project workflows, and automation
-9. Optional retrieval-augmented generation over local files and memories
+5. Bounded agent loop
+6. Tool registry and controlled tool execution
+7. Tool metadata and permissions
+8. Agent trace/debug mode
+9. Memory review, deduplication, and schema improvements
+10. Safe local write tools
+11. Optional retrieval-augmented generation over local files and memories
+12. Optional integrations for email, web search, project workflows, and automation
 
 ## Design Goals
 
@@ -287,17 +341,5 @@ Mind should be:
 - Safe by default
 - Useful from the command line
 - Built around clear internal layers
+- Easy to extend with small Python tools
 - Capable of growing into a more powerful personal assistant without becoming a messy wrapper script
-
-## Non-Goals for v0.1
-
-Mind is not currently:
-
-- A browser agent
-- A full RAG system
-- A multi-agent framework
-- A cloud-first assistant
-- A production security tool
-- A general-purpose automation platform
-
-Those may become future directions, but the current priority is building a clean, reliable local assistant foundation.
