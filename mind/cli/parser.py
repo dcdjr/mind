@@ -108,6 +108,11 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         "tools",
         help="List tools currently available to Mind."
     )
+    agent_parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="Show the agent's tool calls and intermediate steps.",
+    )
 
     return parser
 
@@ -140,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_forget_command(config, args.memory_id)
 
     if args.command == "agent":
-        return run_agent_command(config, args.prompt)
+        return run_agent_command(config, args.prompt, args.trace)
 
     if args.command == "tools":
         return run_tools_command()

@@ -148,3 +148,60 @@ def test_run_agent_stops_after_max_steps(monkeypatch, tmp_path: Path):
     result = agent.run_agent(config, "loop forever", max_steps=2)
 
     assert "maximum number of tool steps" in result
+
+
+def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
+            '{"type": "final", "answer": "Your workspace is empty."}',
+        ]
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: next(responses),
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "run_tool",
+        lambda config, tool_name, args: "Workspace is empty.",
+    )
+
+    result = agent.run_agent(
+        config,
+        "what files are in my workspace?",
+        trace=True,
+    )
+
+    assert "Agent trace:" in result
+    assert "Step 1" in result
+    assert "Action: tool_call" in result
+    assert "Tool: workspace.list_files" in result
+    assert "Result:" in result
+    assert "Workspace is empty." in result
+    assert "Step 2" in result
+    assert "Action: final" in result
+    assert "Final answer:" in result
+    assert "Your workspace is empty." in result
+
+    
+def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: "not json",
+    )
+
+    result = agent.run_agent(config, "bad model output", trace=True)
+
+    assert "Agent trace:" in result
+    assert "Action: parse_failure" in result
+    assert "Raw model response:" in result
+    assert "not json" in result

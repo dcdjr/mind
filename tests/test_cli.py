@@ -230,10 +230,11 @@ def test_mind_agent_routes_to_agent_command(monkeypatch, tmp_path: Path):
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_run_agent_command(config, prompt):
+    def fake_run_agent_command(config, prompt, trace=False):
         nonlocal called
         assert config == test_config
         assert prompt == "what files are in my workspace?"
+        assert trace is False
         called = True
         return 0
 
@@ -260,6 +261,28 @@ def test_mind_tools_routes_to_tools_command(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(cli, "run_tools_command", fake_run_tools_command)
 
     exit_code = cli.main(["tools"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_agent_trace_routes_trace_flag(monkeypatch, tmp_path: Path):
+    """The `mind agent --trace` command should enable trace mode."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_agent_command(config, prompt, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "what files are in my workspace?"
+        assert trace is True
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_agent_command", fake_run_agent_command)
+
+    exit_code = cli.main(["agent", "--trace", "what files are in my workspace?"])
 
     assert exit_code == 0
     assert called is True

@@ -269,16 +269,13 @@ Mind currently includes these safety boundaries:
 Before adding high-impact integrations, the foundation should be strengthened in this order:
 
 ```text
-1. ToolSpec metadata
-2. `mind tools` command
-3. agent trace mode
-4. stronger agent protocol validation
-5. structured ToolResult objects
-6. tool permission levels
-7. memory schema improvements
-8. memory review and deduplication
-9. safe workspace write tools
-10. project status tools
+1. stronger agent protocol validation
+2. structured ToolResult objects
+3. tool permission levels
+4. memory schema improvements
+5. memory review and deduplication
+6. safe workspace write tools
+7. project status tools
 ```
 
 ## Long-Term Direction

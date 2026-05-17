@@ -143,6 +143,12 @@ Run the tool-using agent:
 mind agent "What files are in my workspace?"
 ```
 
+Run the tool-using agent with trace output:
+
+```bash
+mind agent --trace "What files are in my workspace?"
+```
+
 Store a manual memory:
 
 ```bash

@@ -112,9 +112,9 @@ def run_chat_command(config: Config) -> int:
     return 0
 
 
-def run_agent_command(config: Config, prompt: str) -> int:
+def run_agent_command(config: Config, prompt: str, trace: bool = False) -> int:
     """Run Mind's agent mode with controlled tool execution."""
-    response = run_agent(config, prompt)
+    response = run_agent(config, prompt, trace=trace)
     print(response)
 
     return 0
