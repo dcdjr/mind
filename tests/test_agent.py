@@ -10,6 +10,7 @@ from mind.core.config import (
     ModelConfig,
     PathConfig,
 )
+from mind.tools import ToolResult
 
 
 def make_test_config(tmp_path: Path) -> Config:
@@ -59,155 +60,6 @@ def test_extract_json_object_returns_none_for_invalid_json():
     result = agent.extract_json_object(raw)
 
     assert result is None
-
-
-def test_run_agent_returns_final_answer(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    monkeypatch.setattr(
-        agent,
-        "complete",
-        lambda config, messages: '{"type": "final", "answer": "Final answer."}',
-    )
-
-    result = agent.run_agent(config, "hello")
-
-    assert result == "Final answer."
-
-
-def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    responses = iter(
-        [
-            '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
-            '{"type": "final", "answer": "Your workspace is empty."}',
-        ]
-    )
-
-    tool_calls = []
-
-    def fake_complete(config, messages):
-        return next(responses)
-
-    def fake_run_tool(config, tool_name, args):
-        tool_calls.append((tool_name, args))
-        return "Workspace is empty."
-
-    monkeypatch.setattr(agent, "complete", fake_complete)
-    monkeypatch.setattr(agent, "run_tool", fake_run_tool)
-
-    result = agent.run_agent(config, "what files are in my workspace?")
-
-    assert result == "Your workspace is empty."
-    assert tool_calls == [("workspace.list_files", {})]
-
-
-def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    monkeypatch.setattr(
-        agent,
-        "complete",
-        lambda config, messages: '{"type": "tool_call", "tool": 123, "args": {}}',
-    )
-
-    result = agent.run_agent(config, "bad tool")
-
-    assert "valid tool name" in result
-
-
-def test_run_agent_rejects_invalid_tool_args(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    monkeypatch.setattr(
-        agent,
-        "complete",
-        lambda config, messages: '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}',
-    )
-
-    result = agent.run_agent(config, "bad args")
-
-    assert "invalid args" in result
-
-
-def test_run_agent_stops_after_max_steps(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    monkeypatch.setattr(
-        agent,
-        "complete",
-        lambda config, messages: '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
-    )
-
-    monkeypatch.setattr(
-        agent,
-        "run_tool",
-        lambda config, tool_name, args: "Workspace is empty.",
-    )
-
-    result = agent.run_agent(config, "loop forever", max_steps=2)
-
-    assert "maximum number of tool steps" in result
-
-
-def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    responses = iter(
-        [
-            '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
-            '{"type": "final", "answer": "Your workspace is empty."}',
-        ]
-    )
-
-    monkeypatch.setattr(
-        agent,
-        "complete",
-        lambda config, messages: next(responses),
-    )
-
-    monkeypatch.setattr(
-        agent,
-        "run_tool",
-        lambda config, tool_name, args: "Workspace is empty.",
-    )
-
-    result = agent.run_agent(
-        config,
-        "what files are in my workspace?",
-        trace=True,
-    )
-
-    assert "Agent trace:" in result
-    assert "Step 1" in result
-    assert "Action: tool_call" in result
-    assert "Tool: workspace.list_files" in result
-    assert "Result:" in result
-    assert "Workspace is empty." in result
-    assert "Step 2" in result
-    assert "Action: final" in result
-    assert "Final answer:" in result
-    assert "Your workspace is empty." in result
-
-    
-def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    monkeypatch.setattr(
-        agent,
-        "complete",
-        lambda config, messages: "not json",
-    )
-
-    result = agent.run_agent(config, "bad model output", trace=True)
-
-    assert "Agent trace:" in result
-    assert "Action: parse_failure" in result
-    assert "Raw model response:" in result
-    assert "not json" in result
-    assert "Action: error" in result
-    assert "valid JSON object" in result
 
 
 def test_parse_agent_action_returns_final_answer():
@@ -279,3 +131,159 @@ def test_parse_agent_action_rejects_invalid_tool_args():
 
     assert isinstance(result, InvalidAgentResponse)
     assert "invalid args" in result.message
+
+
+def test_run_agent_returns_final_answer(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: '{"type": "final", "answer": "Final answer."}',
+    )
+
+    result = agent.run_agent(config, "hello")
+
+    assert result == "Final answer."
+
+
+def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
+            '{"type": "final", "answer": "Your workspace is empty."}',
+        ]
+    )
+
+    tool_calls = []
+
+    def fake_complete(config, messages):
+        return next(responses)
+
+    def fake_run_tool(config, tool_name, args):
+        tool_calls.append((tool_name, args))
+        return ToolResult.success_result(tool_name, "Workspace is empty.")
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+    monkeypatch.setattr(agent, "run_tool", fake_run_tool)
+
+    result = agent.run_agent(config, "what files are in my workspace?")
+
+    assert result == "Your workspace is empty."
+    assert tool_calls == [("workspace.list_files", {})]
+
+
+def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: '{"type": "tool_call", "tool": 123, "args": {}}',
+    )
+
+    result = agent.run_agent(config, "bad tool")
+
+    assert "valid tool name" in result
+
+
+def test_run_agent_rejects_invalid_tool_args(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}',
+    )
+
+    result = agent.run_agent(config, "bad args")
+
+    assert "invalid args" in result
+
+
+def test_run_agent_stops_after_max_steps(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "run_tool",
+        lambda config, tool_name, args: ToolResult.success_result(
+            tool_name,
+            "Workspace is empty.",
+        ),
+    )
+
+    result = agent.run_agent(config, "loop forever", max_steps=2)
+
+    assert "maximum number of tool steps" in result
+
+
+def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
+            '{"type": "final", "answer": "Your workspace is empty."}',
+        ]
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: next(responses),
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "run_tool",
+        lambda config, tool_name, args: ToolResult.success_result(
+            tool_name,
+            "Workspace is empty.",
+        ),
+    )
+
+    result = agent.run_agent(
+        config,
+        "what files are in my workspace?",
+        trace=True,
+    )
+
+    assert "Agent trace:" in result
+    assert "Step 1" in result
+    assert "Action: tool_call" in result
+    assert "Tool: workspace.list_files" in result
+    assert "Success: yes" in result
+    assert "Result:" in result
+    assert "Workspace is empty." in result
+    assert "Step 2" in result
+    assert "Action: final" in result
+    assert "Final answer:" in result
+    assert "Your workspace is empty." in result
+
+
+def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: "not json",
+    )
+
+    result = agent.run_agent(config, "bad model output", trace=True)
+
+    assert "Agent trace:" in result
+    assert "Action: parse_failure" in result
+    assert "Raw model response:" in result
+    assert "not json" in result
+    assert "Action: error" in result
+    assert "valid JSON object" in result

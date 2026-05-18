@@ -9,7 +9,13 @@ from mind.core.config import (
     PathConfig,
 )
 from mind.memory import add_memory
-from mind.tools import run_tool, TOOL_REGISTRY, ToolSpec, format_available_tools
+from mind.tools import (
+    TOOL_REGISTRY,
+    ToolResult,
+    ToolSpec,
+    format_available_tools,
+    run_tool,
+)
 
 
 def make_test_config(tmp_path: Path) -> Config:
@@ -42,8 +48,10 @@ def test_run_tool_rejects_unknown_tool(tmp_path: Path):
 
     result = run_tool(config, "unknown.tool", {})
 
-    assert "Error:" in result
-    assert "Unknown tool" in result
+    assert isinstance(result, ToolResult)
+    assert result.success is False
+    assert "Error:" in result.output
+    assert "Unknown tool" in result.output
 
 
 def test_workspace_list_files_tool_lists_relative_files(tmp_path: Path):
@@ -55,8 +63,10 @@ def test_workspace_list_files_tool_lists_relative_files(tmp_path: Path):
 
     result = run_tool(config, "workspace.list_files", {})
 
-    assert "Workspace files:" in result
-    assert "- notes.txt" in result
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert "Workspace files:" in result.output
+    assert "- notes.txt" in result.output
 
 
 def test_workspace_read_file_tool_reads_workspace_file(tmp_path: Path):
@@ -68,8 +78,10 @@ def test_workspace_read_file_tool_reads_workspace_file(tmp_path: Path):
 
     result = run_tool(config, "workspace.read_file", {"path": "notes.txt"})
 
-    assert "FILE: notes.txt" in result
-    assert "hello" in result
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert "FILE: notes.txt" in result.output
+    assert "hello" in result.output
 
 
 def test_workspace_read_file_tool_rejects_escape_path(tmp_path: Path):
@@ -82,8 +94,10 @@ def test_workspace_read_file_tool_rejects_escape_path(tmp_path: Path):
 
     result = run_tool(config, "workspace.read_file", {"path": "../secret.txt"})
 
-    assert "Access denied" in result
-    assert "secretsauce" not in result
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert "Access denied" in result.output
+    assert "secretsauce" not in result.output
 
 
 def test_memory_list_tool_lists_memories(tmp_path: Path):
@@ -93,8 +107,34 @@ def test_memory_list_tool_lists_memories(tmp_path: Path):
 
     result = run_tool(config, "memory.list", {})
 
-    assert "Saved memories:" in result
-    assert "- The project is named Mind." in result
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert "Saved memories:" in result.output
+    assert "- The project is named Mind." in result.output
+
+
+def test_run_tool_wraps_tool_exceptions(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    def broken_tool(config, args):
+        raise RuntimeError("boom")
+
+    broken_spec = ToolSpec(
+        name="test.broken",
+        description="Broken test tool.",
+        args_description="{}",
+        permission="read_only",
+        function=broken_tool,
+    )
+
+    monkeypatch.setitem(TOOL_REGISTRY, "test.broken", broken_spec)
+
+    result = run_tool(config, "test.broken", {})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is False
+    assert "RuntimeError" in result.output
+    assert "boom" in result.output
 
 
 def test_tool_registry_values_are_tool_specs():

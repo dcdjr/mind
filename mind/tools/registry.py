@@ -5,7 +5,8 @@ from typing import Any
 from mind.core.config import Config
 from mind.tools.internet import tool_internet_github_zen
 from mind.tools.memory import tool_memory_list
-from mind.tools.spec import ToolFunction, ToolSpec
+from mind.tools.result import ToolResult
+from mind.tools.spec import ToolSpec
 from mind.tools.workspace import (
     tool_workspace_list_files,
     tool_workspace_read_file,
@@ -44,16 +45,38 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 }
 
 
-def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None) -> str:
+def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None) -> ToolResult:
     """Run a known safe internal Mind tool by name."""
     if tool_name not in TOOL_REGISTRY:
-        return f"Error: Unknown tool '{tool_name}'."
+        return ToolResult.failure_result(
+            tool_name=tool_name,
+            error=f"Unknown tool '{tool_name}'.",
+        )
 
     safe_args = args or {}
+    spec = TOOL_REGISTRY[tool_name]
 
-    spec: ToolSpec = TOOL_REGISTRY[tool_name]
+    try:
+        output = spec.function(config, safe_args)
+    except Exception as error:
+        return ToolResult.failure_result(
+            tool_name=tool_name,
+            error=f"Tool raised {type(error).__name__}: {error}.",
+        )
+    
+    if not isinstance(output, str):
+        return ToolResult.failure_result(
+            tool_name=tool_name,
+            error=(
+                f"Tool '{tool_name}' returned {type(output).__name__}, "
+                "but Mind tools must return strings."
+            ),
+        )
 
-    return spec.function(config, safe_args)
+    return ToolResult.success_result(
+        tool_name=tool_name,
+        output=output,
+    )
 
 
 def format_available_tools() -> str:

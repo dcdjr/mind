@@ -91,7 +91,8 @@ def run_agent(
                     "content": (
                         "Tool result:\n"
                         f"Tool: {action.tool}\n"
-                        f"Result:\n{tool_result}\n\n"
+                        f"Success: {'yes' if tool_result.success else 'no'}\n"
+                        f"Result:\n{tool_result.output}\n\n"
                         "Now either call another tool or give a final answer as strict JSON."
                     ),
                 }

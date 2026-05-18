@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
+from mind.tools.result import ToolResult
+
 
 @dataclass
 class AgentTrace:
@@ -16,22 +18,29 @@ class AgentTrace:
         step_number: int,
         tool_name: str,
         args: dict[str, Any],
-        result: str,
+        result: ToolResult,
     ) -> None:
         formatted_args = json.dumps(args, sort_keys=True)
 
-        self.entries.append(
-            "\n".join(
+        lines = [
+            f"Step {step_number}",
+            "Action: tool_call",
+            f"Tool: {tool_name}",
+            f"Args: {formatted_args}",
+            f"Success: {'yes' if result.success else 'no'}",
+            "Result:",
+            result.output,
+        ]
+
+        if result.error:
+            lines.extend(
                 [
-                    f"Step {step_number}",
-                    "Action: tool_call",
-                    f"Tool: {tool_name}",
-                    f"Args: {formatted_args}",
-                    "Result:",
-                    result,
+                    "Error:",
+                    result.error,
                 ]
             )
-        )
+
+        self.entries.append("\n".join(lines))
 
     def record_final(self, step_number: int, answer: str) -> None:
         self.entries.append(
