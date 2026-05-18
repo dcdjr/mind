@@ -124,9 +124,17 @@ def run_ask_command(
     return 0
 
 
-def run_chat_command(config: Config) -> int:
-    """Run a chat session with Mind."""
-    run_chat(config)
+def run_chat_command(
+    config: Config,
+    tools: bool = False,
+    trace: bool = False,
+) -> int:
+    """Run a chat session with Mind, optionally with tool use enabled."""
+    if trace and not tools:
+        print("Error: --trace can only be used with --tools")
+        return 1
+
+    run_chat(config, tools=tools, trace=trace)
 
     return 0
 

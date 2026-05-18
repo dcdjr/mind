@@ -206,3 +206,83 @@ def test_maybe_extract_and_store_memories_skips_duplicate_memories(monkeypatch, 
     )
 
     assert stored == []
+
+
+def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: Path):
+    """Tool-enabled chat should run each user turn through the agent loop."""
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        chat,
+        "build_context",
+        lambda config: ContextBundle(
+            memory_context=None,
+            workspace_context=None,
+        ),
+    )
+
+    agent_calls = []
+
+    def fake_run_agent(config, prompt, trace=False):
+        agent_calls.append((prompt, trace))
+        return "agent response"
+
+    extracted_turns = []
+
+    def fake_maybe_extract_and_store_memories(config, user_input, response):
+        extracted_turns.append((user_input, response))
+
+    monkeypatch.setattr(chat, "run_agent", fake_run_agent)
+    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", fake_maybe_extract_and_store_memories)
+
+    inputs = iter(["what files are in my workspace?", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
+
+    chat.run_chat(test_config, tools=True, trace=True)
+    captured = capsys.readouterr()
+
+    assert "Mind chat with tools." in captured.out
+    assert "agent response" in captured.out
+    assert agent_calls == [("what files are in my workspace?", True)]
+    assert extracted_turns == [("what files are in my workspace?", "agent response")]
+
+
+def test_run_chat_without_tools_uses_normal_model_path(capsys, monkeypatch, tmp_path: Path):
+    """Normal chat should still use the regular chat message loop."""
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        chat,
+        "build_context",
+        lambda config: ContextBundle(
+            memory_context=None,
+            workspace_context=None,
+        ),
+    )
+
+    monkeypatch.setattr(
+        chat,
+        "build_initial_chat_messages",
+        lambda config, workspace_context=None, memory_context=None: [
+            {"role": "system", "content": "system prompt"}
+        ],
+    )
+
+    complete_calls = []
+
+    def fake_complete(config, messages):
+        complete_calls.append(messages[-1])
+        return "normal response"
+
+    monkeypatch.setattr(chat, "complete", fake_complete)
+    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", lambda *args: None)
+
+    inputs = iter(["hello", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
+
+    chat.run_chat(test_config, tools=False)
+    captured = capsys.readouterr()
+
+    assert "Mind chat. Type /exit or /quit to quit." in captured.out
+    assert "normal response" in captured.out
+    assert complete_calls == [{"role": "user", "content": "hello"}]

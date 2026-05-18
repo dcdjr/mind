@@ -3,8 +3,9 @@ from __future__ import annotations
 from mind.core.context import build_context
 from mind.core.llm import complete
 from mind.core.prompt import build_initial_chat_messages
-from mind.memory import add_memory, memory_exists, extract_memories
 from mind.core.config import Config
+from mind.memory import add_memory, memory_exists, extract_memories
+from mind.agent import run_agent
 
 
 def maybe_extract_and_store_memories(
@@ -26,7 +27,11 @@ def maybe_extract_and_store_memories(
             add_memory(config, memory)
 
 
-def run_chat(config: Config) -> None:
+def run_chat(
+    config: Config,
+    tools: bool = False,
+    trace: bool = False,
+) -> None:
     """Run an interactive terminal chat session with short-term message history."""
     context = build_context(config)
 
@@ -35,7 +40,10 @@ def run_chat(config: Config) -> None:
         memory_context=context.memory_context,
     )
 
-    print("Mind chat. Type /exit or /quit to quit.")
+    if tools:
+        print("Mind chat with tools. Type /exit or /quit to quit.")
+    else:
+        print("Mind chat. Type /exit or /quit to quit.")
     print()
 
     while True:
@@ -54,6 +62,16 @@ def run_chat(config: Config) -> None:
         if user_input in {"/exit", "/quit"}:
             print("Exiting Mind chat.")
             break
+
+        if tools:
+            response = run_agent(config, user_input, trace=trace)
+
+            print()
+            print(response)
+            print()
+
+            maybe_extract_and_store_memories(config, user_input, response)
+            continue
 
         messages.append(
             {

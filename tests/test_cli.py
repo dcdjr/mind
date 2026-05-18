@@ -292,9 +292,11 @@ def test_mind_chat_routes_to_chat_command(monkeypatch, tmp_path: Path):
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_run_chat_command(config):
+    def fake_run_chat_command(config, tools=False, trace=False):
         nonlocal called
         assert config == test_config
+        assert tools is False
+        assert trace is False
         called = True
         return 0
 
@@ -430,3 +432,63 @@ def test_mind_agent_trace_routes_trace_flag(monkeypatch, tmp_path: Path):
 
     assert exit_code == 0
     assert called is True
+
+
+def test_mind_chat_tools_routes_tools_flag(monkeypatch, tmp_path: Path):
+    """The `mind chat --tools` command should enable tool use for chat mode."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_chat_command(config, tools=False, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert tools is True
+        assert trace is False
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_chat_command", fake_run_chat_command)
+
+    exit_code = cli.main(["chat", "--tools"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_chat_tools_trace_routes_trace_flag(monkeypatch, tmp_path: Path):
+    """The `mind chat --tools --trace` command should enable tool tracing."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_chat_command(config, tools=False, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert tools is True
+        assert trace is True
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_chat_command", fake_run_chat_command)
+
+    exit_code = cli.main(["chat", "--tools", "--trace"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_run_chat_command_rejects_trace_without_tools(tmp_path: Path, capsys):
+    """Trace mode should only be accepted when chat tools are enabled."""
+    test_config = make_test_config(tmp_path)
+
+    exit_code = commands.run_chat_command(
+        test_config,
+        tools=False,
+        trace=True,
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "--trace can only be used with --tools" in captured.out

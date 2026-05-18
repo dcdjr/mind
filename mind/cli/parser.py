@@ -69,9 +69,19 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
     )
 
     # Add chat command
-    subparsers.add_parser(
+    chat_parser = subparsers.add_parser(
         "chat",
         help="Start an interactive Mind chat session.",
+    )
+    chat_parser.add_argument(
+        "--tools",
+        action="store_true",
+        help="Allow each chat turn to use Mind's safe internal tools.",
+    )
+    chat_parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="Show tool calls and intermediate steps when --tools is enabled.",
     )
 
     # Add remember command
@@ -149,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_files_command(config)
 
     if args.command == "chat":
-        return run_chat_command(config)
+        return run_chat_command(config, args.tools, args.trace)
 
     if args.command == "remember":
         return run_remember_command(config, args.text)
