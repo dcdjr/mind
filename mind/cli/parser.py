@@ -51,6 +51,16 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
             "Example: --files notes.txt plan.md"
         ),
     )
+    ask_parser.add_argument(
+        "--tools",
+        action="store_true",
+        help="Allow this one-shot prompt to use Mind's safe internal tools.",
+    )
+    ask_parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="Show tool calls and intermediate steps when --tools is enabled.",
+    )
 
     # Add files command
     subparsers.add_parser(
@@ -127,7 +137,13 @@ def main(argv: list[str] | None = None) -> int:
         return run_doctor_command(config)
 
     if args.command == "ask":
-        return run_ask_command(config, args.prompt, args.files)
+        return run_ask_command(
+            config,
+            args.prompt,
+            args.files,
+            args.tools,
+            args.trace,
+        )
 
     if args.command == "files":
         return run_files_command(config)

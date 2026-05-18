@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import mind.cli.commands as commands
 import mind.cli.parser as cli
 from mind.core.config import (
     AssistantConfig,
@@ -82,11 +83,13 @@ def test_mind_ask_routes_to_ask_command(monkeypatch, tmp_path: Path):
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_run_ask_command(config, prompt, files):
+    def fake_run_ask_command(config, prompt, files, tools=False, trace=False):
         nonlocal called
         assert config == test_config
         assert prompt == "hello"
         assert files is None
+        assert tools is False
+        assert trace is False
         called = True
         return 0
 
@@ -104,11 +107,13 @@ def test_mind_ask_with_files_routes_file_arguments(monkeypatch, tmp_path: Path):
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_run_ask_command(config, prompt, files):
+    def fake_run_ask_command(config, prompt, files, tools=False, trace=False):
         nonlocal called
         assert config == test_config
         assert prompt == "summarize these"
         assert files == ["notes.txt", "plan.md"]
+        assert tools is False
+        assert trace is False
         called = True
         return 0
 
@@ -121,6 +126,145 @@ def test_mind_ask_with_files_routes_file_arguments(monkeypatch, tmp_path: Path):
 
     assert exit_code == 0
     assert called is True
+
+
+def test_mind_ask_tools_routes_tools_flag(monkeypatch, tmp_path: Path):
+    """The `mind ask --tools` command should enable tool use for ask mode."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_ask_command(config, prompt, files, tools=False, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "what files are in my workspace?"
+        assert files is None
+        assert tools is True
+        assert trace is False
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_ask_command", fake_run_ask_command)
+
+    exit_code = cli.main(["ask", "--tools", "what files are in my workspace?"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_ask_tools_trace_routes_trace_flag(monkeypatch, tmp_path: Path):
+    """The `mind ask --tools --trace` command should enable tool tracing."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_ask_command(config, prompt, files, tools=False, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "what files are in my workspace?"
+        assert files is None
+        assert tools is True
+        assert trace is True
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_ask_command", fake_run_ask_command)
+
+    exit_code = cli.main(
+        ["ask", "--tools", "--trace", "what files are in my workspace?"]
+    )
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_run_ask_command_uses_ask_once_by_default(monkeypatch, tmp_path: Path, capsys):
+    """run_ask_command should use the normal ask runtime unless tools are enabled."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_ask_once(config, prompt, file_paths=None):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "hello"
+        assert file_paths is None
+        called = True
+        return "normal answer"
+
+    monkeypatch.setattr(commands, "ask_once", fake_ask_once)
+
+    exit_code = commands.run_ask_command(test_config, "hello", None)
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert called is True
+    assert "normal answer" in captured.out
+
+
+def test_run_ask_command_uses_agent_when_tools_enabled(monkeypatch, tmp_path: Path, capsys):
+    """run_ask_command should use the agent runtime when tools are enabled."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_agent(config, prompt, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "what files are in my workspace?"
+        assert trace is True
+        called = True
+        return "agent answer"
+
+    monkeypatch.setattr(commands, "run_agent", fake_run_agent)
+
+    exit_code = commands.run_ask_command(
+        test_config,
+        "what files are in my workspace?",
+        None,
+        tools=True,
+        trace=True,
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert called is True
+    assert "agent answer" in captured.out
+
+
+def test_run_ask_command_rejects_files_with_tools(tmp_path: Path, capsys):
+    """Tool-enabled ask mode should reject --files until agent file context is supported."""
+    test_config = make_test_config(tmp_path)
+
+    exit_code = commands.run_ask_command(
+        test_config,
+        "summarize notes",
+        ["notes.txt"],
+        tools=True,
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "--files cannot be used with --tools yet" in captured.out
+
+
+def test_run_ask_command_rejects_trace_without_tools(tmp_path: Path, capsys):
+    """Trace mode should only be accepted when tool use is enabled."""
+    test_config = make_test_config(tmp_path)
+
+    exit_code = commands.run_ask_command(
+        test_config,
+        "hello",
+        None,
+        tools=False,
+        trace=True,
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "--trace can only be used with --tools" in captured.out
 
 
 def test_mind_files_routes_to_files_command(monkeypatch, tmp_path: Path):

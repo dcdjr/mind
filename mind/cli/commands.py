@@ -96,11 +96,30 @@ def run_forget_command(config: Config, memory_id: int) -> int:
     return 0
 
 
-def run_ask_command(config: Config, prompt: str, files: list[str] | None) -> int:
-    """Give Mind a single prompt."""
+def run_ask_command(
+    config: Config,
+    prompt: str,
+    files: list[str] | None,
+    tools: bool = False,
+    trace: bool = False,
+) -> int:
+    """Give Mind a single prompt, optionally with tool use enabled."""
+    if tools:
+        if files:
+            print("Error: --files cannot be used with --tools yet.")
+            return 1
+
+        response = run_agent(config, prompt, trace=trace)
+        print(response)
+        return 0
+
+    if trace:
+        print("Error: --trace can only be used with --tools.")
+        return 1
+
     file_paths = [Path(file) for file in files] if files else None
-    res = ask_once(config, prompt, file_paths)
-    print(res)
+    response = ask_once(config, prompt, file_paths)
+    print(response)
 
     return 0
 
