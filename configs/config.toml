@@ -17,3 +17,10 @@ max_relevant_memories = 8
 
 [context]
 max_workspace_chars = 12000
+
+[tools]
+allow_external_read = true
+allow_local_write = false
+allow_external_write = false
+allow_dangerous = false
+require_confirmation = true

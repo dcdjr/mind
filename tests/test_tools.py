@@ -7,6 +7,7 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ToolConfig,
 )
 from mind.memory import add_memory
 from mind.tools import (
@@ -40,6 +41,13 @@ def make_test_config(tmp_path: Path) -> Config:
         context=ContextConfig(
             max_workspace_chars=12000,
         ),
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        )
     )
 
 
@@ -175,3 +183,121 @@ def test_format_available_tools_uses_tool_spec_metadata():
     assert '{"path": "notes.txt"}' in formatted_tools
     assert "internet.github_zen" in formatted_tools
     assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
+
+
+def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_path: Path):
+    """Read-only tools should still run when non-read permissions are disabled."""
+    base_config = make_test_config(tmp_path)
+
+    config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=False,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
+    )
+
+    result = run_tool(config, "workspace.list_files", {})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert "Workspace is empty." in result.output
+
+
+def test_external_read_tool_is_blocked_when_external_read_is_disabled(tmp_path: Path):
+    """External-read tools should not run when external read permission is disabled."""
+    base_config = make_test_config(tmp_path)
+
+    config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=False,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
+    )
+
+    result = run_tool(config, "internet.github_zen", {})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is False
+    assert "Error:" in result.output
+    assert (
+        "permitted" in result.output.lower()
+        or "permission" in result.output.lower()
+    )
+
+
+def test_external_read_tool_runs_when_external_read_is_enabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """External-read tools should run when external read permission is enabled."""
+    config = make_test_config(tmp_path)
+
+    def fake_external_read_tool(config, args):
+        return "external read worked"
+
+    external_read_spec = ToolSpec(
+        name="test.external_read",
+        description="Fake external-read tool.",
+        args_description="{}",
+        permission="external_read",
+        function=fake_external_read_tool,
+    )
+
+    monkeypatch.setitem(TOOL_REGISTRY, "test.external_read", external_read_spec)
+
+    result = run_tool(config, "test.external_read", {})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert result.output == "external read worked"
+
+
+def test_local_write_tool_is_blocked_when_local_write_is_disabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Local-write tools should not run when local write permission is disabled."""
+    config = make_test_config(tmp_path)
+    called = False
+
+    def fake_local_write_tool(config, args):
+        nonlocal called
+        called = True
+        return "should not run"
+
+    local_write_spec = ToolSpec(
+        name="test.local_write",
+        description="Fake local-write tool.",
+        args_description="{}",
+        permission="local_write",
+        function=fake_local_write_tool,
+    )
+
+    monkeypatch.setitem(TOOL_REGISTRY, "test.local_write", local_write_spec)
+
+    result = run_tool(config, "test.local_write", {})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is False
+    assert called is False
+    assert "Error:" in result.output
+    assert (
+        "permitted" in result.output.lower()
+        or "permission" in result.output.lower()
+    )

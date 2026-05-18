@@ -8,12 +8,12 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ToolConfig,
 )
 from mind.core.context import ContextBundle
 
 
 def make_test_config(tmp_path: Path) -> Config:
-    """Create an isolated test config so chat tests do not touch real project state."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",
@@ -35,6 +35,13 @@ def make_test_config(tmp_path: Path) -> Config:
         context=ContextConfig(
             max_workspace_chars=12000,
         ),
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        )
     )
 
 
@@ -161,6 +168,7 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
             max_relevant_memories=8,
         ),
         context=base_config.context,
+        tools=base_config.tools,
     )
 
     called = False

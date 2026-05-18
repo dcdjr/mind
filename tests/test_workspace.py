@@ -9,13 +9,14 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ToolConfig,
 )
 from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
 
 
 @pytest.fixture
 def test_config(tmp_path: Path) -> Config:
-    """Create an isolated config so workspace tests do not touch the real repo workspace."""
+    """Create an isolated config so workspace tests do not touch real project state."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",
@@ -36,6 +37,13 @@ def test_config(tmp_path: Path) -> Config:
         ),
         context=ContextConfig(
             max_workspace_chars=12000,
+        ),
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
         ),
     )
 
@@ -120,7 +128,10 @@ def test_read_workspace_file_rejects_directories(test_config: Config):
     assert "directory" in result
 
 
-def test_read_workspace_file_rejects_parent_directory_traversal(test_config: Config, tmp_path: Path):
+def test_read_workspace_file_rejects_parent_directory_traversal(
+    test_config: Config,
+    tmp_path: Path,
+):
     """The reader should not allow paths like ../secret.txt to escape the workspace."""
     ensure_workspace(test_config.paths.workspace)
 
@@ -134,7 +145,10 @@ def test_read_workspace_file_rejects_parent_directory_traversal(test_config: Con
     assert "do not expose this" not in result
 
 
-def test_read_workspace_file_rejects_symlink_escape(test_config: Config, tmp_path: Path):
+def test_read_workspace_file_rejects_symlink_escape(
+    test_config: Config,
+    tmp_path: Path,
+):
     """A symlink inside the workspace should not be allowed to point outside the workspace."""
     workspace = ensure_workspace(test_config.paths.workspace)
 

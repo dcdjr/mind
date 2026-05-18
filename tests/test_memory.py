@@ -7,6 +7,7 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ToolConfig,
 )
 from mind.memory import (
     add_memory,
@@ -16,7 +17,6 @@ from mind.memory import (
     list_memories,
     memory_exists,
 )
-
 
 def make_test_config(tmp_path: Path) -> Config:
     return Config(
@@ -40,6 +40,13 @@ def make_test_config(tmp_path: Path) -> Config:
         context=ContextConfig(
             max_workspace_chars=12000,
         ),
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        )
     )
 
 

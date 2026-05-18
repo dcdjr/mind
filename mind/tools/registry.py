@@ -45,6 +45,19 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 }
 
 
+def _tool_is_allowed_to_run(config: Config, spec: ToolSpec) -> bool:
+    if spec.permission == "local_write" and not config.tools.allow_local_write:
+        return False
+    elif spec.permission == "external_read" and not config.tools.allow_external_read:
+        return False
+    elif spec.permission == "external_write" and not config.tools.allow_external_write:
+        return False
+    elif spec.permission == "dangerous" and not config.tools.allow_dangerous:
+        return False
+
+    return True
+
+
 def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None) -> ToolResult:
     """Run a known safe internal Mind tool by name."""
     if tool_name not in TOOL_REGISTRY:
@@ -55,6 +68,12 @@ def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None)
 
     safe_args = args or {}
     spec = TOOL_REGISTRY[tool_name]
+
+    if not _tool_is_allowed_to_run(config, spec):
+        return ToolResult.failure_result(
+            tool_name=tool_name,
+            error=f"Error: Tool '{tool_name}' requires permission 'external_read', but that permission is disabled."
+        )
 
     try:
         output = spec.function(config, safe_args)

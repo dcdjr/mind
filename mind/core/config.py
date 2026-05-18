@@ -11,6 +11,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+
 DEFAULT_CONFIG_PATH = Path("configs/config.toml")
 
 
@@ -45,12 +46,22 @@ class ContextConfig:
 
 
 @dataclass(frozen=True)
+class ToolConfig:
+    allow_external_read: bool
+    allow_local_write: bool
+    allow_external_write: bool
+    allow_dangerous: bool
+    require_confirmation: bool
+
+
+@dataclass(frozen=True)
 class Config:
     assistant: AssistantConfig
     paths: PathConfig
     model: ModelConfig
     memory: MemoryConfig
     context: ContextConfig
+    tools: ToolConfig
 
 
 def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
@@ -82,5 +93,12 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
         ),
         context=ContextConfig(
             max_workspace_chars=raw["context"]["max_workspace_chars"]
+        ),
+        tools=ToolConfig(
+            allow_external_read=raw["tools"]["allow_external_read"],
+            allow_local_write=raw["tools"]["allow_local_write"],
+            allow_external_write=raw["tools"]["allow_external_write"],
+            allow_dangerous=raw["tools"]["allow_dangerous"],
+            require_confirmation=raw["tools"]["require_confirmation"],
         ),
     )

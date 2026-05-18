@@ -8,11 +8,10 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ToolConfig,
 )
 
-
 def make_test_config(tmp_path: Path) -> Config:
-    """Create an isolated test config so context tests do not touch real project state."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",
@@ -34,6 +33,13 @@ def make_test_config(tmp_path: Path) -> Config:
         context=ContextConfig(
             max_workspace_chars=12000,
         ),
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        )
     )
 
 
@@ -50,6 +56,7 @@ def test_build_context_includes_most_recent_memories(monkeypatch, tmp_path: Path
             max_relevant_memories=2,
         ),
         context=base_config.context,
+        tools=base_config.tools,
     )
 
     monkeypatch.setattr(
@@ -86,6 +93,7 @@ def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
             max_relevant_memories=8,
         ),
         context=base_config.context,
+        tools=base_config.tools,
     )
 
     called = False
@@ -151,6 +159,7 @@ def test_build_workspace_context_truncates_when_context_is_too_large(tmp_path: P
         context=ContextConfig(
             max_workspace_chars=50,
         ),
+        tools=base_config.tools,
     )
 
     workspace = test_config.paths.workspace

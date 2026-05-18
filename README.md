@@ -2,7 +2,7 @@
 
 Mind is a lightweight local-first personal AI assistant runtime.
 
-It is designed to run on your own machine, use a local model through Ollama, read files from a controlled workspace, maintain persistent memory, and expose a safe tool system for extending the assistant with custom Python capabilities.
+It is designed to run on your own machine, use a local model through Ollama, read files from a controlled workspace, maintain persistent memory, and expose a safe permissioned tool system for extending the assistant with custom Python capabilities.
 
 Mind is not meant to be a thin wrapper around an API. The goal is to build a local-first assistant architecture that stays understandable, extensible, inspectable, and safe.
 
@@ -16,9 +16,14 @@ Implemented:
 - `mind doctor`
 - `mind ask <prompt>`
 - `mind ask <prompt> --files <workspace-relative-path> [more-files...]`
+- `mind ask --tools <prompt>`
+- `mind ask --tools --trace <prompt>`
 - `mind files`
 - `mind chat`
+- `mind chat --tools`
+- `mind chat --tools --trace`
 - `mind agent <task>`
+- `mind agent --trace <task>`
 - `mind remember <text>`
 - `mind memories`
 - `mind forget <memory-id>`
@@ -32,10 +37,16 @@ Implemented:
 - Memory context injection into prompts
 - Experimental automatic memory extraction during chat
 - Bounded tool-using agent loop
+- Strict JSON agent protocol parsing
+- One retry for invalid agent protocol output
+- Structured `ToolResult` objects
 - Tool registry for controlled Python capabilities
+- Tool permission metadata
+- Configurable tool permission enforcement
 - Workspace, memory, and internet tool modules
 - Read-only external API tool example
-- Unit tests for CLI routing, context building, memory, workspace access, prompt construction, agent behavior, and tool execution
+- Agent trace/debug output
+- Unit tests for CLI routing, context building, memory, workspace access, prompt construction, agent behavior, tool execution, and tool permissions
 
 ## Requirements
 
@@ -89,7 +100,7 @@ database = "data/mind.db"
 [model]
 provider = "ollama"
 base_url = "http://localhost:11434"
-default = "gemma4:e4b"
+default = "gemma4:e2b"
 
 [memory]
 auto_memory = true
@@ -97,7 +108,51 @@ max_relevant_memories = 8
 
 [context]
 max_workspace_chars = 12000
+
+[tools]
+allow_external_read = true
+allow_local_write = false
+allow_external_write = false
+allow_dangerous = false
+require_confirmation = true
 ```
+
+### Tool Permission Settings
+
+Mind classifies tools by permission level. The current permission levels are:
+
+```text
+read_only
+external_read
+local_write
+external_write
+dangerous
+```
+
+Current default policy:
+
+```text
+read_only        allowed
+external_read    allowed
+local_write      disabled
+external_write   disabled
+dangerous        disabled
+```
+
+This matters because the model is not trusted to execute arbitrary actions. The model may request a tool, but Mind checks the tool registry and configured permission policy before running it.
+
+The `[tools]` config section controls which classes of tools are allowed:
+
+```toml
+[tools]
+allow_external_read = true
+allow_local_write = false
+allow_external_write = false
+allow_dangerous = false
+require_confirmation = true
+```
+
+For example, `internet.github_zen` is an `external_read` tool. If `allow_external_read = false`, Mind should block that tool and return a failed `ToolResult` instead of making the external request.
 
 ## Usage
 
@@ -137,6 +192,18 @@ Start an interactive chat session:
 mind chat
 ```
 
+Start chat with tools enabled:
+
+```bash
+mind chat --tools
+```
+
+Start chat with tools and trace output enabled:
+
+```bash
+mind chat --tools --trace
+```
+
 Run the tool-using agent:
 
 ```bash
@@ -147,6 +214,12 @@ Run the tool-using agent with trace output:
 
 ```bash
 mind agent --trace "What files are in my workspace?"
+```
+
+Run tool-enabled one-shot ask mode:
+
+```bash
+mind ask --tools "What files are in my workspace?"
 ```
 
 Store a manual memory:
@@ -232,19 +305,30 @@ This feature is experimental. It currently uses simple recent-memory retrieval, 
 
 Mind includes a simple bounded agent loop.
 
-The agent asks the local model to return one of two JSON response types:
+The agent asks the local model to return one of two JSON response types.
+
+Tool call:
 
 ```json
 {"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}
 ```
 
-or:
+Final answer:
 
 ```json
 {"type": "final", "answer": "Your answer here."}
 ```
 
-When the model requests a tool, Mind checks the tool name against a known registry, validates the basic argument shape, runs the approved Python function, feeds the text result back to the model, and then asks for either another tool call or a final answer.
+When the model requests a tool, Mind:
+
+1. Parses the model output as JSON.
+2. Validates the response as either a `ToolCall` or `FinalAnswer`.
+3. Looks up the requested tool in the registry.
+4. Checks the tool's permission level against config.
+5. Runs only the approved Python function.
+6. Wraps the result in a structured `ToolResult`.
+7. Feeds the result back to the model.
+8. Asks for either another tool call or a final answer.
 
 The current tool registry includes:
 
@@ -255,7 +339,38 @@ memory.list
 internet.github_zen
 ```
 
-The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists and how it runs.
+The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, and how it runs.
+
+## Agent Trace Mode
+
+Trace mode shows intermediate agent behavior.
+
+Example:
+
+```bash
+mind agent --trace "What files are in my workspace?"
+```
+
+Trace output may include:
+
+```text
+Agent trace:
+
+Step 1
+Action: tool_call
+Tool: workspace.list_files
+Args: {}
+Success: yes
+Result:
+Workspace files:
+- notes.txt
+
+Step 2
+Action: final
+Answer: Your workspace contains notes.txt.
+```
+
+Trace mode is useful for debugging tool selection, permission failures, protocol failures, and agent loops.
 
 ## Architecture
 
@@ -294,11 +409,31 @@ Current package responsibilities:
 mind/cli/        CLI parser and command handlers
 mind/runtime/    ask and chat runtime flows
 mind/core/       config, context, prompts, diagnostics, and LLM client
-mind/agent/      bounded agent loop, protocol parsing, and agent prompts
-mind/tools/      tool registry and tool implementations
+mind/agent/      bounded agent loop, protocol parsing, trace output, and agent prompts
+mind/tools/      tool registry, tool specs, tool results, permission checks, and tool implementations
 mind/memory/     SQLite memory store and memory extraction
 mind/workspace/  safe workspace file access
 ```
+
+## Safety Model
+
+Mind's current safety boundaries:
+
+```text
+- workspace-relative file access
+- rejection of path traversal outside workspace
+- rejection of symlink escapes outside workspace
+- bounded agent loop
+- explicit tool registry
+- structured agent protocol validation
+- structured tool results
+- configurable tool permission enforcement
+- no arbitrary shell execution
+- no local write tools enabled yet
+- no external write tools enabled yet
+```
+
+Mind is intentionally conservative. New capabilities should be added as small controlled tools, not as unrestricted model behavior.
 
 ## Testing
 
@@ -306,6 +441,14 @@ Run the test suite:
 
 ```bash
 pytest
+```
+
+Run targeted tests:
+
+```bash
+pytest tests/test_workspace.py
+pytest tests/test_tools.py
+pytest tests/test_agent.py
 ```
 
 The tests currently cover:
@@ -323,8 +466,12 @@ The tests currently cover:
 - Prompt construction
 - Config loading
 - Agent JSON parsing
+- Agent protocol retry behavior
 - Agent tool loop behavior
+- Agent trace output
 - Tool registry behavior
+- Structured tool results
+- Tool permission enforcement
 - Workspace and memory tools
 
 ## Development Roadmap
@@ -337,12 +484,24 @@ Planned development stages:
 4. Persistent memory
 5. Bounded agent loop
 6. Tool registry and controlled tool execution
-7. Tool metadata and permissions
+7. Tool metadata and permission enforcement
 8. Agent trace/debug mode
 9. Memory review, deduplication, and schema improvements
 10. Safe local write tools
-11. Optional retrieval-augmented generation over local files and memories
-12. Optional integrations for email, web search, project workflows, and automation
+11. Project/devlog/status tools
+12. Optional retrieval-augmented generation over local files and memories
+13. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
+
+Near-term next steps:
+
+```text
+1. Add confirmation metadata to ToolSpec.
+2. Show confirmation metadata in `mind tools`.
+3. Add safe workspace write tools.
+4. Add safe workspace append tools.
+5. Add project devlog/status tools.
+6. Improve memory schema and review workflow.
+```
 
 ## Design Goals
 
@@ -355,4 +514,5 @@ Mind should be:
 - Useful from the command line
 - Built around clear internal layers
 - Easy to extend with small Python tools
+- Explicit about what the model can and cannot do
 - Capable of growing into a more powerful personal assistant without becoming a messy wrapper script

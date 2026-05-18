@@ -9,6 +9,7 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ToolConfig,
 )
 from mind.tools import ToolResult
 
@@ -35,6 +36,13 @@ def make_test_config(tmp_path: Path) -> Config:
         context=ContextConfig(
             max_workspace_chars=12000,
         ),
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        )
     )
 
 
