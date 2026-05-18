@@ -301,3 +301,4 @@ def test_local_write_tool_is_blocked_when_local_write_is_disabled(
         "permitted" in result.output.lower()
         or "permission" in result.output.lower()
     )
+    assert "local_write" in result.output

@@ -72,7 +72,10 @@ def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None)
     if not _tool_is_allowed_to_run(config, spec):
         return ToolResult.failure_result(
             tool_name=tool_name,
-            error=f"Error: Tool '{tool_name}' requires permission 'external_read', but that permission is disabled."
+            error=(
+                f"Error: Tool '{tool_name}' requires permission "
+                f"'{spec.permission}', but that permission is disabled."
+            )
         )
 
     try:
