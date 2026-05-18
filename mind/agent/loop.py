@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import json
 
+from mind.agent.prompts import build_agent_system_prompt
+from mind.agent.protocol import (
+    FinalAnswer,
+    InvalidAgentResponse,
+    ToolCall,
+    extract_json_object,
+    parse_agent_action,
+)
+from mind.agent.trace import AgentTrace, format_traced_response
 from mind.core.config import Config
 from mind.core.llm import complete
-from mind.agent.prompts import build_agent_system_prompt
-from mind.agent.protocol import extract_json_object
-from mind.agent.trace import AgentTrace, format_traced_response
 from mind.tools import run_tool
 
 
@@ -41,63 +47,42 @@ def run_agent(
 
     for step_number in range(1, max_steps + 1):
         raw_response = complete(config, messages)
-        parsed = extract_json_object(raw_response)
+        action = parse_agent_action(raw_response)
 
-        if parsed is None:
+        if isinstance(action, InvalidAgentResponse):
             if agent_trace is not None:
-                agent_trace.record_parse_failure(step_number, raw_response)
+                agent_trace.record_parse_failure(step_number, action.raw_output)
+                agent_trace.record_error(step_number, action.message)
 
-            return finish(raw_response)
+            return finish(action.message)
 
-        response_type = parsed.get("type")
-        
-        # Handle final answer
-        if response_type == "final":
-            answer = parsed.get("answer")
+        if isinstance(action, FinalAnswer):
+            if agent_trace is not None:
+                agent_trace.record_final(step_number, action.answer)
 
-            if isinstance(answer, str) and answer.strip():
-                if agent_trace is not None:
-                    agent_trace.record_final(step_number, answer)
+            return finish(action.answer)
 
-                return finish(answer.strip())
-
-            message = "Error: Agent returned a final response without a valid answer."
+        if isinstance(action, ToolCall):
+            tool_result = run_tool(config, action.tool, action.args)
 
             if agent_trace is not None:
-                agent_trace.record_error(step_number, message)
-
-            return finish(message)
-
-        # Handle tool call
-        if response_type == "tool_call":
-            tool_name = parsed.get("tool")
-            args = parsed.get("args", {})
-
-            if not isinstance(tool_name, str):
-                message = "Error: Agent requested a tool without a valid tool name."
-
-                if agent_trace is not None:
-                    agent_trace.record_error(step_number, message)
-
-                return finish(message)
-
-            if not isinstance(args, dict):
-                message = "Error: Agent requested a tool with invalid args."
-
-                if agent_trace is not None:
-                    agent_trace.record_error(step_number, message)
-
-                return finish(message)
-
-            tool_result = run_tool(config, tool_name, args)
-
-            if agent_trace is not None:
-                agent_trace.record_tool_call(step_number, tool_name, args, tool_result)
+                agent_trace.record_tool_call(
+                    step_number,
+                    action.tool,
+                    action.args,
+                    tool_result,
+                )
 
             messages.append(
                 {
                     "role": "assistant",
-                    "content": json.dumps(parsed),
+                    "content": json.dumps(
+                        {
+                            "type": "tool_call",
+                            "tool": action.tool,
+                            "args": action.args,
+                        }
+                    ),
                 }
             )
             messages.append(
@@ -105,7 +90,7 @@ def run_agent(
                     "role": "user",
                     "content": (
                         "Tool result:\n"
-                        f"Tool: {tool_name}\n"
+                        f"Tool: {action.tool}\n"
                         f"Result:\n{tool_result}\n\n"
                         "Now either call another tool or give a final answer as strict JSON."
                     ),
@@ -113,16 +98,7 @@ def run_agent(
             )
 
             continue
-        
-        # Handle unknown response type
-        message = "Error: Agent returned an unknown response type."
 
-        if agent_trace is not None:
-            agent_trace.record_error(step_number, message)
-
-        return finish(message)
-    
-    # Handle reaching maximum number of tool steps
     message = "Error: Agent reached the maximum number of tool steps without a final answer."
 
     if agent_trace is not None:

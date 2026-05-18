@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import mind.agent.loop as agent
+from mind.agent.protocol import FinalAnswer, InvalidAgentResponse, ToolCall
 from mind.core.config import (
     AssistantConfig,
     Config,
@@ -205,3 +206,76 @@ def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
     assert "Action: parse_failure" in result
     assert "Raw model response:" in result
     assert "not json" in result
+    assert "Action: error" in result
+    assert "valid JSON object" in result
+
+
+def test_parse_agent_action_returns_final_answer():
+    raw = '{"type": "final", "answer": "Done."}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert result == FinalAnswer(answer="Done.")
+
+
+def test_parse_agent_action_returns_tool_call():
+    raw = '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert result == ToolCall(tool="workspace.list_files", args={})
+
+
+def test_parse_agent_action_returns_invalid_for_missing_json():
+    raw = "not json"
+
+    result = agent.parse_agent_action(raw)
+
+    assert isinstance(result, InvalidAgentResponse)
+    assert "valid JSON object" in result.message
+    assert result.raw_output == raw
+
+
+def test_parse_agent_action_returns_invalid_for_missing_type():
+    raw = '{"answer": "Done."}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert isinstance(result, InvalidAgentResponse)
+    assert "missing required field 'type'" in result.message
+
+
+def test_parse_agent_action_returns_invalid_for_unknown_type():
+    raw = '{"type": "nonsense", "answer": "Done."}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert isinstance(result, InvalidAgentResponse)
+    assert "unknown response type" in result.message
+
+
+def test_parse_agent_action_rejects_empty_final_answer():
+    raw = '{"type": "final", "answer": "   "}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert isinstance(result, InvalidAgentResponse)
+    assert "valid answer" in result.message
+
+
+def test_parse_agent_action_rejects_invalid_tool_name():
+    raw = '{"type": "tool_call", "tool": 123, "args": {}}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert isinstance(result, InvalidAgentResponse)
+    assert "valid tool name" in result.message
+
+
+def test_parse_agent_action_rejects_invalid_tool_args():
+    raw = '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}'
+
+    result = agent.parse_agent_action(raw)
+
+    assert isinstance(result, InvalidAgentResponse)
+    assert "invalid args" in result.message
