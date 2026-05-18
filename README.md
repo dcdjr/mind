@@ -8,7 +8,7 @@ Mind is not meant to be a thin wrapper around an API. The goal is to build a loc
 
 ## Current Status
 
-Mind is currently a v0.1 command-line prototype with a package-based internal architecture.
+Mind is currently a v0.2 command-line prototype with a package-based internal architecture.
 
 Implemented:
 

@@ -1,3 +1,3 @@
-"""Mind: a lightweight local-first personal AI assistant."""
+"""Mind: a lightweight local-first personal AI assistant runtime."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
