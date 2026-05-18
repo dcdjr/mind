@@ -115,12 +115,12 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
     # Add agent command
     agent_parser = subparsers.add_parser(
         "agent",
-        help="Give Mind a task and allow it to use safe internal tools.",
+        help="Alias for `mind ask --tools`.",
     )
     agent_parser.add_argument(
         "prompt",
         type=str,
-        help="The task to give Mind's tool-using agent.",
+        help="The one-shot tool-enabled prompt to run.",
     )
 
     # Add tools command

@@ -492,3 +492,30 @@ def test_run_chat_command_rejects_trace_without_tools(tmp_path: Path, capsys):
 
     assert exit_code == 1
     assert "--trace can only be used with --tools" in captured.out
+
+
+def test_run_agent_command_delegates_to_tool_enabled_ask(monkeypatch, tmp_path: Path):
+    """run_agent_command should behave as a compatibility alias for ask --tools."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_ask_command(config, prompt, files, tools=False, trace=False):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "what files are in my workspace?"
+        assert files is None
+        assert tools is True
+        assert trace is True
+        called = True
+        return 0
+
+    monkeypatch.setattr(commands, "run_ask_command", fake_run_ask_command)
+
+    exit_code = commands.run_agent_command(
+        test_config,
+        "what files are in my workspace?",
+        trace=True,
+    )
+
+    assert exit_code == 0
+    assert called is True

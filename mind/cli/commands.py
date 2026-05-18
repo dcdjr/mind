@@ -140,11 +140,14 @@ def run_chat_command(
 
 
 def run_agent_command(config: Config, prompt: str, trace: bool = False) -> int:
-    """Run Mind's agent mode with controlled tool execution."""
-    response = run_agent(config, prompt, trace=trace)
-    print(response)
-
-    return 0
+    """Compatibility alias for tool-enabled one-shot ask mode."""
+    return run_ask_command(
+        config,
+        prompt,
+        files=None,
+        tools=True,
+        trace=trace,
+    )
 
 
 def run_tools_command() -> int:
