@@ -20,6 +20,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         args_description="{}",
         permission="read_only",
         function=tool_workspace_list_files,
+        requires_confirmation=False,
     ),
     "workspace.read_file": ToolSpec(
         name="workspace.read_file",
@@ -27,6 +28,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         args_description='{"path": "notes.txt"}',
         permission="read_only",
         function=tool_workspace_read_file,
+        requires_confirmation=False,
     ),
     "memory.list": ToolSpec(
         name="memory.list",
@@ -34,6 +36,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         args_description="{}",
         permission="read_only",
         function=tool_memory_list,
+        requires_confirmation=False,
     ),
     "internet.github_zen": ToolSpec(
         name="internet.github_zen",
@@ -41,6 +44,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         args_description="{}",
         permission="external_read",
         function=tool_internet_github_zen,
+        requires_confirmation=False,
     ),
 }
 

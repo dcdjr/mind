@@ -164,6 +164,10 @@ def run_tools_command() -> int:
         print(f"  Description: {spec.description}")
         print(f"  Args: {spec.args_description}")
         print(f"  Permission: {spec.permission}")
+        print(
+            "  Requires confirmation: "
+            f"{'yes' if spec.requires_confirmation else 'no'}"
+        )
         print()
     
     for _, spec in TOOL_REGISTRY.items():

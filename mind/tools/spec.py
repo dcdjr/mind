@@ -24,4 +24,10 @@ class ToolSpec:
     args_description: str
     permission: PermissionLevel
     function: ToolFunction
+
+    # New tools should fail closed: if the developer forgets to decide,
+    # Mind treats the tool as needing explicit user confirmation.
+    requires_confirmation: bool = True
+
+    # Controls whether the model can see/request this tool in agent mode.
     available_to_agent: bool = True

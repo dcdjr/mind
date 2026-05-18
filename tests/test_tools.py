@@ -302,3 +302,51 @@ def test_local_write_tool_is_blocked_when_local_write_is_disabled(
         or "permission" in result.output.lower()
     )
     assert "local_write" in result.output
+
+
+def test_tool_spec_requires_confirmation_by_default():
+    """New tools should require confirmation unless they explicitly opt out."""
+    spec = ToolSpec(
+        name="test.local_write",
+        description="Fake local-write tool.",
+        args_description="{}",
+        permission="local_write",
+        function=lambda config, args: "ok",
+    )
+
+    assert spec.requires_confirmation is True
+
+
+def test_existing_read_tools_do_not_require_confirmation():
+    """Current low-risk read tools should explicitly opt out of confirmation."""
+    assert TOOL_REGISTRY["workspace.list_files"].requires_confirmation is False
+    assert TOOL_REGISTRY["workspace.read_file"].requires_confirmation is False
+    assert TOOL_REGISTRY["memory.list"].requires_confirmation is False
+    assert TOOL_REGISTRY["internet.github_zen"].requires_confirmation is False
+
+
+def test_permission_denial_message_uses_actual_permission(monkeypatch, tmp_path: Path):
+    """Blocked tools should report the specific permission that caused the denial."""
+    config = make_test_config(tmp_path)
+    called = False
+
+    def fake_local_write_tool(config, args):
+        nonlocal called
+        called = True
+        return "should not run"
+
+    local_write_spec = ToolSpec(
+        name="test.local_write_message",
+        description="Fake local-write tool.",
+        args_description="{}",
+        permission="local_write",
+        function=fake_local_write_tool,
+    )
+
+    monkeypatch.setitem(TOOL_REGISTRY, "test.local_write_message", local_write_spec)
+
+    result = run_tool(config, "test.local_write_message", {})
+
+    assert result.success is False
+    assert called is False
+    assert "local_write" in result.output
