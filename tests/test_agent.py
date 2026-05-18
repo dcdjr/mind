@@ -175,13 +175,66 @@ def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Pa
     assert tool_calls == [("workspace.list_files", {})]
 
 
-def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
+def test_run_agent_retries_once_after_invalid_json(monkeypatch, tmp_path: Path):
     config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            "not json",
+            '{"type": "final", "answer": "Recovered."}',
+        ]
+    )
+    captured_messages = []
+
+    def fake_complete(config, messages):
+        captured_messages.append([message.copy() for message in messages])
+        return next(responses)
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent(config, "recover from bad JSON")
+
+    assert result == "Recovered."
+    assert len(captured_messages) == 2
+    assert "previous response did not follow" in captured_messages[1][-1]["content"]
+    assert "Protocol error:" in captured_messages[1][-1]["content"]
+
+
+def test_run_agent_returns_error_after_protocol_retry_fails(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            "not json",
+            "still not json",
+        ]
+    )
 
     monkeypatch.setattr(
         agent,
         "complete",
-        lambda config, messages: '{"type": "tool_call", "tool": 123, "args": {}}',
+        lambda config, messages: next(responses),
+    )
+
+    result = agent.run_agent(config, "bad model output")
+
+    assert "valid JSON object" in result
+
+
+def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": 123, "args": {}}',
+            '{"type": "tool_call", "tool": 123, "args": {}}',
+        ]
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: next(responses),
     )
 
     result = agent.run_agent(config, "bad tool")
@@ -192,10 +245,17 @@ def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
 def test_run_agent_rejects_invalid_tool_args(monkeypatch, tmp_path: Path):
     config = make_test_config(tmp_path)
 
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}',
+            '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}',
+        ]
+    )
+
     monkeypatch.setattr(
         agent,
         "complete",
-        lambda config, messages: '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}',
+        lambda config, messages: next(responses),
     )
 
     result = agent.run_agent(config, "bad args")
@@ -273,17 +333,51 @@ def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
 def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
     config = make_test_config(tmp_path)
 
+    responses = iter(
+        [
+            "not json",
+            "still not json",
+        ]
+    )
+
     monkeypatch.setattr(
         agent,
         "complete",
-        lambda config, messages: "not json",
+        lambda config, messages: next(responses),
     )
 
     result = agent.run_agent(config, "bad model output", trace=True)
 
     assert "Agent trace:" in result
-    assert "Action: parse_failure" in result
+    assert result.count("Action: parse_failure") == 2
     assert "Raw model response:" in result
     assert "not json" in result
+    assert "still not json" in result
     assert "Action: error" in result
     assert "valid JSON object" in result
+
+
+def test_run_agent_trace_shows_recovery_after_parse_failure(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            "not json",
+            '{"type": "final", "answer": "Recovered."}',
+        ]
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: next(responses),
+    )
+
+    result = agent.run_agent(config, "recover", trace=True)
+
+    assert "Agent trace:" in result
+    assert "Action: parse_failure" in result
+    assert "not json" in result
+    assert "Action: final" in result
+    assert "Recovered." in result
+    assert "Action: error" not in result

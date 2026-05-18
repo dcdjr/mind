@@ -18,6 +18,13 @@ from mind.tools import run_tool
 
 MAX_AGENT_STEPS = 3
 
+PROTOCOL_REPAIR_MESSAGE = (
+    "Your previous response did not follow Mind's agent protocol. "
+    "Return strict JSON only. "
+    "Use either a tool call object or a final answer object. "
+    "Do not include markdown, explanation, or extra text."
+)
+
 
 def run_agent(
     config: Config,
@@ -39,19 +46,47 @@ def run_agent(
 
     agent_trace = AgentTrace() if trace else None
 
+    repair_attempted = False
+    tool_steps = 0
+    step_number = 1
+
     def finish(answer: str) -> str:
         if agent_trace is None:
             return answer
 
         return format_traced_response(answer, agent_trace)
 
-    for step_number in range(1, max_steps + 1):
+    while tool_steps < max_steps:
         raw_response = complete(config, messages)
         action = parse_agent_action(raw_response)
 
         if isinstance(action, InvalidAgentResponse):
             if agent_trace is not None:
                 agent_trace.record_parse_failure(step_number, action.raw_output)
+
+            if not repair_attempted:
+                repair_attempted = True
+
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": raw_response,
+                    }
+                )
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{PROTOCOL_REPAIR_MESSAGE}\n\n"
+                            f"Protocol error: {action.message}"
+                        ),
+                    }
+                )
+
+                step_number += 1
+                continue
+
+            if agent_trace is not None:
                 agent_trace.record_error(step_number, action.message)
 
             return finish(action.message)
@@ -63,6 +98,8 @@ def run_agent(
             return finish(action.answer)
 
         if isinstance(action, ToolCall):
+            tool_steps += 1
+
             tool_result = run_tool(config, action.tool, action.args)
 
             if agent_trace is not None:
@@ -98,11 +135,12 @@ def run_agent(
                 }
             )
 
+            step_number += 1
             continue
 
     message = "Error: Agent reached the maximum number of tool steps without a final answer."
 
     if agent_trace is not None:
-        agent_trace.record_error(max_steps, message)
+        agent_trace.record_error(step_number, message)
 
     return finish(message)
