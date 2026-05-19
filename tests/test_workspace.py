@@ -11,7 +11,12 @@ from mind.core.config import (
     PathConfig,
     ToolConfig,
 )
-from mind.workspace import ensure_workspace, list_workspace_files, read_workspace_file
+from mind.workspace import (
+    ensure_workspace,
+    list_workspace_files,
+    read_workspace_file,
+    write_workspace_file,
+)
 
 
 @pytest.fixture
@@ -167,3 +172,155 @@ def test_read_workspace_file_rejects_symlink_escape(
     assert "Error:" in result
     assert "Access denied" in result
     assert "symlink secret" not in result
+
+
+def test_write_workspace_file_creates_new_file(test_config: Config):
+    """A valid workspace-relative path should be written successfully."""
+    result = write_workspace_file(
+        test_config,
+        Path("notes.txt"),
+        "hello from Mind",
+    )
+
+    target = test_config.paths.workspace / "notes.txt"
+
+    assert "Wrote workspace file" in result
+    assert target.read_text(encoding="utf-8") == "hello from Mind"
+
+
+def test_write_workspace_file_creates_nested_parent_directories(test_config: Config):
+    """Writing a nested file should create parent directories inside the workspace."""
+    result = write_workspace_file(
+        test_config,
+        Path("notes/demo.md"),
+        "# Demo",
+    )
+
+    target = test_config.paths.workspace / "notes" / "demo.md"
+
+    assert "Wrote workspace file" in result
+    assert target.exists()
+    assert target.read_text(encoding="utf-8") == "# Demo"
+
+
+def test_write_workspace_file_rejects_absolute_path(test_config: Config, tmp_path: Path):
+    """Workspace writes should reject absolute paths."""
+    outside_file = tmp_path / "outside.txt"
+
+    result = write_workspace_file(
+        test_config,
+        outside_file,
+        "do not write this",
+    )
+
+    assert "Error:" in result
+    assert "Absolute paths are not allowed" in result
+    assert not outside_file.exists()
+
+
+def test_write_workspace_file_rejects_parent_directory_traversal(
+    test_config: Config,
+    tmp_path: Path,
+):
+    """Workspace writes should not allow ../ paths to escape the workspace."""
+    outside_file = tmp_path / "secret.txt"
+
+    result = write_workspace_file(
+        test_config,
+        Path("../secret.txt"),
+        "do not write this",
+    )
+
+    assert "Error:" in result
+    assert "Access denied" in result
+    assert not outside_file.exists()
+
+
+def test_write_workspace_file_rejects_symlink_escape(
+    test_config: Config,
+    tmp_path: Path,
+):
+    """A symlink inside the workspace should not allow writes outside the workspace."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+
+    symlink_path = workspace / "link"
+
+    try:
+        symlink_path.symlink_to(outside_dir, target_is_directory=True)
+    except OSError:
+        pytest.skip("Symlink creation is not supported in this environment.")
+
+    result = write_workspace_file(
+        test_config,
+        Path("link/secret.txt"),
+        "do not write this",
+    )
+
+    assert "Error:" in result
+    assert "Access denied" in result
+    assert not (outside_dir / "secret.txt").exists()
+
+
+def test_write_workspace_file_refuses_overwrite_by_default(test_config: Config):
+    """Existing files should not be overwritten unless overwrite=True."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+    target = workspace / "notes.txt"
+    target.write_text("original", encoding="utf-8")
+
+    result = write_workspace_file(
+        test_config,
+        Path("notes.txt"),
+        "replacement",
+    )
+
+    assert "Error:" in result
+    assert "already exists" in result
+    assert target.read_text(encoding="utf-8") == "original"
+
+
+def test_write_workspace_file_overwrites_when_allowed(test_config: Config):
+    """Existing files should be replaced when overwrite=True."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+    target = workspace / "notes.txt"
+    target.write_text("original", encoding="utf-8")
+
+    result = write_workspace_file(
+        test_config,
+        Path("notes.txt"),
+        "replacement",
+        overwrite=True,
+    )
+
+    assert "Overwrote workspace file" in result
+    assert target.read_text(encoding="utf-8") == "replacement"
+
+
+def test_write_workspace_file_rejects_directory_target(test_config: Config):
+    """The writer should reject attempts to write text to a directory path."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+    (workspace / "folder").mkdir()
+
+    result = write_workspace_file(
+        test_config,
+        Path("folder"),
+        "content",
+    )
+
+    assert "Error:" in result
+    assert "directory" in result
+
+
+def test_write_workspace_file_rejects_oversized_content(test_config: Config):
+    """The writer should reject content that exceeds the configured safety cap."""
+    result = write_workspace_file(
+        test_config,
+        Path("huge.txt"),
+        "A" * 100_001,
+    )
+
+    assert "Error:" in result
+    assert "too large" in result
+    assert not (test_config.paths.workspace / "huge.txt").exists()

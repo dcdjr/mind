@@ -183,6 +183,8 @@ def test_format_available_tools_uses_tool_spec_metadata():
     assert '{"path": "notes.txt"}' in formatted_tools
     assert "internet.github_zen" in formatted_tools
     assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
+    assert "workspace.write_file" in formatted_tools
+    assert "Write text to a workspace-relative file." in formatted_tools
 
 
 def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_path: Path):
@@ -350,3 +352,131 @@ def test_permission_denial_message_uses_actual_permission(monkeypatch, tmp_path:
     assert result.success is False
     assert called is False
     assert "local_write" in result.output
+
+
+def test_workspace_write_file_tool_is_registered():
+    """The workspace write tool should be available in the registry."""
+    spec = TOOL_REGISTRY["workspace.write_file"]
+
+    assert spec.name == "workspace.write_file"
+    assert spec.permission == "local_write"
+    assert spec.requires_confirmation is True
+
+
+def test_workspace_write_file_tool_is_blocked_when_local_write_disabled(tmp_path: Path):
+    """workspace.write_file should fail closed when local writes are disabled."""
+    config = make_test_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": "hello",
+        },
+    )
+
+    assert result.success is False
+    assert "Error:" in result.output
+    assert "local_write" in result.output
+    assert not (config.paths.workspace / "notes.txt").exists()
+
+
+def test_workspace_write_file_tool_writes_when_local_write_enabled(tmp_path: Path):
+    """workspace.write_file should write files when local writes are explicitly enabled."""
+    base_config = make_test_config(tmp_path)
+
+    config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=True,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
+    )
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": "hello from tool",
+        },
+    )
+
+    target = config.paths.workspace / "notes.txt"
+
+    assert result.success is True
+    assert "Wrote workspace file" in result.output
+    assert target.read_text(encoding="utf-8") == "hello from tool"
+
+
+def test_workspace_write_file_tool_rejects_missing_path(tmp_path: Path):
+    """workspace.write_file should validate that path is provided."""
+    base_config = make_test_config(tmp_path)
+
+    config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=True,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
+    )
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "content": "hello",
+        },
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "path" in result.output
+
+
+def test_workspace_write_file_tool_rejects_non_string_content(tmp_path: Path):
+    """workspace.write_file should validate that content is a string."""
+    base_config = make_test_config(tmp_path)
+
+    config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=True,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
+    )
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": 123,
+        },
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "content" in result.output

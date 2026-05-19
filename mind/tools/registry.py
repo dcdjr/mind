@@ -10,6 +10,7 @@ from mind.tools.spec import ToolSpec
 from mind.tools.workspace import (
     tool_workspace_list_files,
     tool_workspace_read_file,
+    tool_workspace_write_file,
 )
 
 
@@ -29,6 +30,14 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         permission="read_only",
         function=tool_workspace_read_file,
         requires_confirmation=False,
+    ),
+    "workspace.write_file": ToolSpec(
+        name="workspace.write_file",
+        description="Write text to a workspace-relative file.",
+        args_description='{"path": "notes.txt", "content": "text", "overwrite": false}',
+        permission="local_write",
+        function=tool_workspace_write_file,
+        requires_confirmation=True,
     ),
     "memory.list": ToolSpec(
         name="memory.list",

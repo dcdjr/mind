@@ -4,7 +4,11 @@ from pathlib import Path
 from typing import Any
 
 from mind.core.config import Config
-from mind.workspace import list_workspace_files, read_workspace_file
+from mind.workspace import (
+    list_workspace_files,
+    read_workspace_file,
+    write_workspace_file,
+)
 
 
 def tool_workspace_list_files(config: Config, args: dict[str, Any]) -> str:
@@ -32,3 +36,26 @@ def tool_workspace_read_file(config: Config, args: dict[str, Any]) -> str:
     content = read_workspace_file(config, Path(path))
 
     return f"FILE: {path}\n---\n{content}"
+
+
+def tool_workspace_write_file(config: Config, args: dict[str, Any]) -> str:
+    """Write text to a workspace-relative file path."""
+    path = args.get("path")
+    content = args.get("content")
+    overwrite = args.get("overwrite", False)
+
+    if not isinstance(path, str) or not path.strip():
+        return "Error: workspace.write_file requires a non-empty string argument named 'path'."
+
+    if not isinstance(content, str):
+        return "Error: workspace.write_file requires a string argument named 'content'."
+
+    if not isinstance(overwrite, bool):
+        return "Error: workspace.write_file requires 'overwrite' to be a boolean when provided."
+
+    return write_workspace_file(
+        config,
+        Path(path),
+        content,
+        overwrite=overwrite,
+    )
