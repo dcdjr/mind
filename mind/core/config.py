@@ -1,14 +1,13 @@
 """Configuration loading for Mind.
 
-The config file is Mind's source of truth for paths, model settings,
-assistant identity, and memory behavior.
+The config file is Mind's source of truth for paths, project settings, model
+settings, assistant identity, memory behavior, and tool permissions.
 """
 
 from __future__ import annotations
 
-
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -55,6 +54,11 @@ class ToolConfig:
 
 
 @dataclass(frozen=True)
+class ProjectConfig:
+    root: Path
+
+
+@dataclass(frozen=True)
 class Config:
     assistant: AssistantConfig
     paths: PathConfig
@@ -62,16 +66,20 @@ class Config:
     memory: MemoryConfig
     context: ContextConfig
     tools: ToolConfig
+    project: ProjectConfig = field(
+        default_factory=lambda: ProjectConfig(root=Path("."))
+    )
 
 
 def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
     """Load Mind's configuration from a TOML file."""
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
-    
+
     with config_path.open("rb") as file:
         raw = tomllib.load(file)
 
+    project_config = raw.get("project", {})
 
     return Config(
         assistant=AssistantConfig(
@@ -92,7 +100,7 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
             max_relevant_memories=raw["memory"]["max_relevant_memories"],
         ),
         context=ContextConfig(
-            max_workspace_chars=raw["context"]["max_workspace_chars"]
+            max_workspace_chars=raw["context"]["max_workspace_chars"],
         ),
         tools=ToolConfig(
             allow_external_read=raw["tools"]["allow_external_read"],
@@ -100,5 +108,8 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
             allow_external_write=raw["tools"]["allow_external_write"],
             allow_dangerous=raw["tools"]["allow_dangerous"],
             require_confirmation=raw["tools"]["require_confirmation"],
+        ),
+        project=ProjectConfig(
+            root=Path(project_config.get("root", ".")),
         ),
     )

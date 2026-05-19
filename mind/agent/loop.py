@@ -7,7 +7,6 @@ from mind.agent.protocol import (
     FinalAnswer,
     InvalidAgentResponse,
     ToolCall,
-    extract_json_object,
     parse_agent_action,
 )
 from mind.agent.trace import AgentTrace, format_traced_response
@@ -16,7 +15,7 @@ from mind.core.llm import complete
 from mind.tools import run_tool
 
 
-MAX_AGENT_STEPS = 3
+MAX_AGENT_STEPS = 5
 
 PROTOCOL_REPAIR_MESSAGE = (
     "Your previous response did not follow Mind's agent protocol. "
@@ -31,18 +30,25 @@ def run_agent(
     user_prompt: str,
     max_steps: int = MAX_AGENT_STEPS,
     trace: bool = False,
+    prior_messages: list[dict[str, str]] | None = None,
 ) -> str:
-    """Run a small bounded agent loop with safe internal tools."""
+    """Run a bounded agent loop with optional prior conversation context."""
     messages: list[dict[str, str]] = [
         {
             "role": "system",
             "content": build_agent_system_prompt(config),
         },
+    ]
+
+    if prior_messages:
+        messages.extend(prior_messages)
+
+    messages.append(
         {
             "role": "user",
             "content": user_prompt,
-        },
-    ]
+        }
+    )
 
     agent_trace = AgentTrace() if trace else None
 

@@ -8,10 +8,14 @@ from mind.tools.memory import tool_memory_list
 from mind.tools.result import ToolResult
 from mind.tools.spec import ToolSpec
 from mind.tools.workspace import (
+    tool_workspace_append_file,
     tool_workspace_list_files,
     tool_workspace_read_file,
     tool_workspace_write_file,
-    tool_workspace_append_file,
+)
+from mind.tools.codebase import (
+    tool_codebase_read_file,
+    tool_codebase_list_files,
 )
 
 
@@ -56,6 +60,22 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         function=tool_memory_list,
         requires_confirmation=False,
     ),
+    "codebase.list_files": ToolSpec(
+        name="codebase.list_files",
+        description="List source files in the configured project codebase.",
+        args_description="{}",
+        permission="read_only",
+        function=tool_codebase_list_files,
+        requires_confirmation=False,
+    ),
+    "codebase.read_file": ToolSpec(
+        name="codebase.read_file",
+        description="Read a project-relative source file from the configured codebase.",
+        args_description='{"path": "mind/agent/loop.py"}',
+        permission="read_only",
+        function=tool_codebase_read_file,
+        requires_confirmation=False,
+    ),
     "internet.github_zen": ToolSpec(
         name="internet.github_zen",
         description="Fetch a short random phrase from GitHub's public Zen API.",
@@ -68,19 +88,27 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 
 
 def _tool_is_allowed_to_run(config: Config, spec: ToolSpec) -> bool:
+    """Return whether a tool is allowed under the current config."""
     if spec.permission == "local_write" and not config.tools.allow_local_write:
         return False
-    elif spec.permission == "external_read" and not config.tools.allow_external_read:
+
+    if spec.permission == "external_read" and not config.tools.allow_external_read:
         return False
-    elif spec.permission == "external_write" and not config.tools.allow_external_write:
+
+    if spec.permission == "external_write" and not config.tools.allow_external_write:
         return False
-    elif spec.permission == "dangerous" and not config.tools.allow_dangerous:
+
+    if spec.permission == "dangerous" and not config.tools.allow_dangerous:
         return False
 
     return True
 
 
-def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None) -> ToolResult:
+def run_tool(
+    config: Config,
+    tool_name: str,
+    args: dict[str, Any] | None = None,
+) -> ToolResult:
     """Run a known safe internal Mind tool by name."""
     if tool_name not in TOOL_REGISTRY:
         return ToolResult.failure_result(
@@ -97,10 +125,10 @@ def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None)
             error=(
                 f"Error: Tool '{tool_name}' requires permission "
                 f"'{spec.permission}', but that permission is disabled."
-            )
+            ),
         )
 
-    if spec.requires_confirmation is True:
+    if spec.requires_confirmation is True and config.tools.require_confirmation:
         user_confirmation = input(
             f"Tool: {tool_name}\n"
             f"Args: {safe_args}\n"
@@ -121,7 +149,7 @@ def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None)
             tool_name=tool_name,
             error=f"Tool raised {type(error).__name__}: {error}.",
         )
-    
+
     if not isinstance(output, str):
         return ToolResult.failure_result(
             tool_name=tool_name,
@@ -137,14 +165,32 @@ def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None)
     )
 
 
-def format_available_tools() -> str:
-    """Return a prompt-friendly list of available tools."""
+def format_available_tools(config: Config) -> str:
+    """Return a prompt-friendly list of tools available under the current config."""
     available_tools = []
 
-    for _, spec in TOOL_REGISTRY.items():
-        if spec.available_to_agent:
-            available_tools.append(
-                f"- {spec.name}: {spec.description} Args: {spec.args_description}"
+    for spec in TOOL_REGISTRY.values():
+        if not spec.available_to_agent:
+            continue
+
+        if not _tool_is_allowed_to_run(config, spec):
+            continue
+
+        confirmation = "yes" if spec.requires_confirmation else "no"
+
+        available_tools.append(
+            "\n".join(
+                [
+                    f"- {spec.name}",
+                    f"  Description: {spec.description}",
+                    f"  Args: {spec.args_description}",
+                    f"  Permission: {spec.permission}",
+                    f"  Requires confirmation: {confirmation}",
+                ]
             )
-            
+        )
+
+    if not available_tools:
+        return "No tools are currently available."
+
     return "\n".join(available_tools)

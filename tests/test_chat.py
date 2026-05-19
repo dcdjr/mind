@@ -41,7 +41,7 @@ def make_test_config(tmp_path: Path) -> Config:
             allow_external_write=False,
             allow_dangerous=False,
             require_confirmation=True,
-        )
+        ),
     )
 
 
@@ -113,9 +113,17 @@ def test_run_chat_sends_user_message_to_model_and_prints_response(
     def fake_maybe_extract_and_store_memories(config, user_input, response):
         extracted_turns.append((user_input, response))
 
-    monkeypatch.setattr(chat, "build_initial_chat_messages", fake_build_initial_chat_messages)
+    monkeypatch.setattr(
+        chat,
+        "build_initial_chat_messages",
+        fake_build_initial_chat_messages,
+    )
     monkeypatch.setattr(chat, "complete", fake_complete)
-    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", fake_maybe_extract_and_store_memories)
+    monkeypatch.setattr(
+        chat,
+        "maybe_extract_and_store_memories",
+        fake_maybe_extract_and_store_memories,
+    )
 
     inputs = iter(["hello", "/quit"])
     monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
@@ -127,7 +135,10 @@ def test_run_chat_sends_user_message_to_model_and_prints_response(
     assert extracted_turns == [("hello", "fake assistant response")]
 
 
-def test_maybe_extract_and_store_memories_saves_extracted_memories(monkeypatch, tmp_path: Path):
+def test_maybe_extract_and_store_memories_saves_extracted_memories(
+    monkeypatch,
+    tmp_path: Path,
+):
     """Automatic memory extraction should save each extracted memory."""
     test_config = make_test_config(tmp_path)
     stored = []
@@ -169,6 +180,7 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
         ),
         context=base_config.context,
         tools=base_config.tools,
+        project=base_config.project,
     )
 
     called = False
@@ -185,7 +197,10 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
     assert called is False
 
 
-def test_maybe_extract_and_store_memories_skips_duplicate_memories(monkeypatch, tmp_path: Path):
+def test_maybe_extract_and_store_memories_skips_duplicate_memories(
+    monkeypatch,
+    tmp_path: Path,
+):
     """Automatic memory extraction should not store an extracted memory that already exists."""
     test_config = make_test_config(tmp_path)
     stored = []
@@ -231,8 +246,8 @@ def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: P
 
     agent_calls = []
 
-    def fake_run_agent(config, prompt, trace=False):
-        agent_calls.append((prompt, trace))
+    def fake_run_agent(config, prompt, trace=False, prior_messages=None):
+        agent_calls.append((prompt, trace, list(prior_messages or [])))
         return "agent response"
 
     extracted_turns = []
@@ -241,7 +256,11 @@ def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: P
         extracted_turns.append((user_input, response))
 
     monkeypatch.setattr(chat, "run_agent", fake_run_agent)
-    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", fake_maybe_extract_and_store_memories)
+    monkeypatch.setattr(
+        chat,
+        "maybe_extract_and_store_memories",
+        fake_maybe_extract_and_store_memories,
+    )
 
     inputs = iter(["what files are in my workspace?", "/quit"])
     monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
@@ -251,8 +270,77 @@ def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: P
 
     assert "Mind chat with tools." in captured.out
     assert "agent response" in captured.out
-    assert agent_calls == [("what files are in my workspace?", True)]
+    assert agent_calls == [("what files are in my workspace?", True, [])]
     assert extracted_turns == [("what files are in my workspace?", "agent response")]
+
+
+def test_run_chat_with_tools_preserves_agent_history(
+    capsys,
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Tool-enabled chat should pass previous turns back into later agent calls."""
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        chat,
+        "build_context",
+        lambda config: ContextBundle(
+            memory_context=None,
+            workspace_context=None,
+        ),
+    )
+
+    agent_calls = []
+
+    def fake_run_agent(config, prompt, trace=False, prior_messages=None):
+        agent_calls.append((prompt, list(prior_messages or [])))
+
+        if prompt == "first":
+            return "first response"
+
+        return "second response"
+
+    monkeypatch.setattr(chat, "run_agent", fake_run_agent)
+    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", lambda *args: None)
+
+    inputs = iter(["first", "second", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
+
+    chat.run_chat(test_config, tools=True, trace=False)
+    captured = capsys.readouterr()
+
+    assert "first response" in captured.out
+    assert "second response" in captured.out
+
+    assert agent_calls[0] == ("first", [])
+    assert agent_calls[1] == (
+        "second",
+        [
+            {
+                "role": "user",
+                "content": "first",
+            },
+            {
+                "role": "assistant",
+                "content": "first response",
+            },
+        ],
+    )
+
+
+def test_strip_trace_for_history_keeps_only_final_answer():
+    """Trace output should not be stored as normal chat history."""
+    response = (
+        "Agent trace:\n\n"
+        "Step 1\n"
+        "Action: final\n"
+        "Answer: Clean answer.\n\n"
+        "Final answer:\n"
+        "Clean answer."
+    )
+
+    assert chat._strip_trace_for_history(response) == "Clean answer."
 
 
 def test_run_chat_without_tools_uses_normal_model_path(capsys, monkeypatch, tmp_path: Path):

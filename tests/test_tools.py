@@ -7,6 +7,7 @@ from mind.core.config import (
     MemoryConfig,
     ModelConfig,
     PathConfig,
+    ProjectConfig,
     ToolConfig,
 )
 from mind.memory import add_memory
@@ -48,6 +49,9 @@ def make_test_config(tmp_path: Path) -> Config:
             allow_dangerous=False,
             require_confirmation=True,
         ),
+        project=ProjectConfig(
+            root=tmp_path / "project",
+        ),
     )
 
 
@@ -68,6 +72,7 @@ def make_local_write_config(tmp_path: Path) -> Config:
             allow_dangerous=False,
             require_confirmation=True,
         ),
+        project=base_config.project,
     )
 
 
@@ -141,6 +146,65 @@ def test_memory_list_tool_lists_memories(tmp_path: Path):
     assert "- The project is named Mind." in result.output
 
 
+def test_codebase_list_files_tool_lists_project_files(tmp_path: Path):
+    """codebase.list_files should list visible files under the configured project root."""
+    config = make_test_config(tmp_path)
+
+    root = config.project.root
+    (root / "mind").mkdir(parents=True, exist_ok=True)
+    (root / "mind" / "__init__.py").write_text("", encoding="utf-8")
+
+    result = run_tool(config, "codebase.list_files", {})
+
+    assert result.success is True
+    assert "Codebase files:" in result.output
+    assert "- mind/__init__.py" in result.output
+
+
+def test_codebase_read_file_tool_reads_project_file(tmp_path: Path):
+    """codebase.read_file should read a project-relative file."""
+    config = make_test_config(tmp_path)
+
+    root = config.project.root
+    target = root / "mind" / "agent" / "loop.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("def run_agent():\n    pass\n", encoding="utf-8")
+
+    result = run_tool(
+        config,
+        "codebase.read_file",
+        {
+            "path": "mind/agent/loop.py",
+        },
+    )
+
+    assert result.success is True
+    assert "FILE: mind/agent/loop.py" in result.output
+    assert "def run_agent" in result.output
+
+
+def test_codebase_read_file_tool_rejects_escape_path(tmp_path: Path):
+    """codebase.read_file should not allow paths outside the project root."""
+    config = make_test_config(tmp_path)
+
+    config.project.root.mkdir(parents=True, exist_ok=True)
+
+    outside_file = tmp_path / "secret.py"
+    outside_file.write_text("supersecret", encoding="utf-8")
+
+    result = run_tool(
+        config,
+        "codebase.read_file",
+        {
+            "path": "../secret.py",
+        },
+    )
+
+    assert result.success is True
+    assert "Access denied" in result.output
+    assert "supersecret" not in result.output
+
+
 def test_run_tool_wraps_tool_exceptions(monkeypatch, tmp_path: Path):
     config = make_test_config(tmp_path)
 
@@ -194,9 +258,10 @@ def test_registered_tools_have_required_metadata():
         assert callable(spec.function)
 
 
-def test_format_available_tools_uses_tool_spec_metadata():
+def test_format_available_tools_uses_tool_spec_metadata(tmp_path: Path):
     """Available tool formatting should be generated from ToolSpec metadata."""
-    formatted_tools = format_available_tools()
+    config = make_local_write_config(tmp_path)
+    formatted_tools = format_available_tools(config)
 
     assert "workspace.list_files" in formatted_tools
     assert "List files in the workspace." in formatted_tools
@@ -207,11 +272,39 @@ def test_format_available_tools_uses_tool_spec_metadata():
     assert "workspace.write_file" in formatted_tools
     assert "Write text to a workspace-relative file." in formatted_tools
 
+    assert "workspace.append_file" in formatted_tools
+    assert "Append text to a workspace-relative file." in formatted_tools
+
+    assert "memory.list" in formatted_tools
+    assert "List saved memories." in formatted_tools
+
+    assert "codebase.list_files" in formatted_tools
+    assert "List source files in the configured project codebase." in formatted_tools
+
+    assert "codebase.read_file" in formatted_tools
+    assert '{"path": "mind/agent/loop.py"}' in formatted_tools
+
     assert "internet.github_zen" in formatted_tools
     assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
 
-    assert "workspace.append_file" in formatted_tools
-    assert "Append text to a workspace-relative file." in formatted_tools
+    assert "Permission:" in formatted_tools
+    assert "Requires confirmation:" in formatted_tools
+
+
+def test_format_available_tools_hides_disabled_local_write_tools(tmp_path: Path):
+    """Disabled local-write tools should not be advertised to the agent."""
+    config = make_test_config(tmp_path)
+
+    formatted_tools = format_available_tools(config)
+
+    assert "workspace.list_files" in formatted_tools
+    assert "workspace.read_file" in formatted_tools
+    assert "memory.list" in formatted_tools
+    assert "codebase.list_files" in formatted_tools
+    assert "codebase.read_file" in formatted_tools
+
+    assert "workspace.write_file" not in formatted_tools
+    assert "workspace.append_file" not in formatted_tools
 
 
 def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_path: Path):
@@ -231,6 +324,7 @@ def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_p
             allow_dangerous=False,
             require_confirmation=True,
         ),
+        project=base_config.project,
     )
 
     result = run_tool(config, "workspace.list_files", {})
@@ -257,6 +351,7 @@ def test_external_read_tool_is_blocked_when_external_read_is_disabled(tmp_path: 
             allow_dangerous=False,
             require_confirmation=True,
         ),
+        project=base_config.project,
     )
 
     result = run_tool(config, "internet.github_zen", {})
@@ -352,6 +447,8 @@ def test_existing_read_tools_do_not_require_confirmation():
     assert TOOL_REGISTRY["workspace.list_files"].requires_confirmation is False
     assert TOOL_REGISTRY["workspace.read_file"].requires_confirmation is False
     assert TOOL_REGISTRY["memory.list"].requires_confirmation is False
+    assert TOOL_REGISTRY["codebase.list_files"].requires_confirmation is False
+    assert TOOL_REGISTRY["codebase.read_file"].requires_confirmation is False
     assert TOOL_REGISTRY["internet.github_zen"].requires_confirmation is False
 
 

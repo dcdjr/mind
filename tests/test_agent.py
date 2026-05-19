@@ -1,7 +1,13 @@
 from pathlib import Path
 
 import mind.agent.loop as agent
-from mind.agent.protocol import FinalAnswer, InvalidAgentResponse, ToolCall
+from mind.agent.protocol import (
+    FinalAnswer,
+    InvalidAgentResponse,
+    ToolCall,
+    extract_json_object,
+    parse_agent_action,
+)
 from mind.core.config import (
     AssistantConfig,
     Config,
@@ -42,14 +48,14 @@ def make_test_config(tmp_path: Path) -> Config:
             allow_external_write=False,
             allow_dangerous=False,
             require_confirmation=True,
-        )
+        ),
     )
 
 
 def test_extract_json_object_parses_valid_json():
     raw = '{"type": "final", "answer": "Done."}'
 
-    result = agent.extract_json_object(raw)
+    result = extract_json_object(raw)
 
     assert result == {"type": "final", "answer": "Done."}
 
@@ -57,7 +63,7 @@ def test_extract_json_object_parses_valid_json():
 def test_extract_json_object_handles_extra_text():
     raw = 'Here is the result:\n{"type": "final", "answer": "Done."}'
 
-    result = agent.extract_json_object(raw)
+    result = extract_json_object(raw)
 
     assert result == {"type": "final", "answer": "Done."}
 
@@ -65,7 +71,7 @@ def test_extract_json_object_handles_extra_text():
 def test_extract_json_object_returns_none_for_invalid_json():
     raw = "not json"
 
-    result = agent.extract_json_object(raw)
+    result = extract_json_object(raw)
 
     assert result is None
 
@@ -73,7 +79,7 @@ def test_extract_json_object_returns_none_for_invalid_json():
 def test_parse_agent_action_returns_final_answer():
     raw = '{"type": "final", "answer": "Done."}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert result == FinalAnswer(answer="Done.")
 
@@ -81,7 +87,7 @@ def test_parse_agent_action_returns_final_answer():
 def test_parse_agent_action_returns_tool_call():
     raw = '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert result == ToolCall(tool="workspace.list_files", args={})
 
@@ -89,7 +95,7 @@ def test_parse_agent_action_returns_tool_call():
 def test_parse_agent_action_returns_invalid_for_missing_json():
     raw = "not json"
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert isinstance(result, InvalidAgentResponse)
     assert "valid JSON object" in result.message
@@ -99,7 +105,7 @@ def test_parse_agent_action_returns_invalid_for_missing_json():
 def test_parse_agent_action_returns_invalid_for_missing_type():
     raw = '{"answer": "Done."}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert isinstance(result, InvalidAgentResponse)
     assert "missing required field 'type'" in result.message
@@ -108,7 +114,7 @@ def test_parse_agent_action_returns_invalid_for_missing_type():
 def test_parse_agent_action_returns_invalid_for_unknown_type():
     raw = '{"type": "nonsense", "answer": "Done."}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert isinstance(result, InvalidAgentResponse)
     assert "unknown response type" in result.message
@@ -117,7 +123,7 @@ def test_parse_agent_action_returns_invalid_for_unknown_type():
 def test_parse_agent_action_rejects_empty_final_answer():
     raw = '{"type": "final", "answer": "   "}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert isinstance(result, InvalidAgentResponse)
     assert "valid answer" in result.message
@@ -126,7 +132,7 @@ def test_parse_agent_action_rejects_empty_final_answer():
 def test_parse_agent_action_rejects_invalid_tool_name():
     raw = '{"type": "tool_call", "tool": 123, "args": {}}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert isinstance(result, InvalidAgentResponse)
     assert "valid tool name" in result.message
@@ -135,7 +141,7 @@ def test_parse_agent_action_rejects_invalid_tool_name():
 def test_parse_agent_action_rejects_invalid_tool_args():
     raw = '{"type": "tool_call", "tool": "workspace.list_files", "args": "bad"}'
 
-    result = agent.parse_agent_action(raw)
+    result = parse_agent_action(raw)
 
     assert isinstance(result, InvalidAgentResponse)
     assert "invalid args" in result.message
@@ -389,3 +395,44 @@ def test_run_agent_trace_shows_recovery_after_parse_failure(monkeypatch, tmp_pat
     assert "Action: final" in result
     assert "Recovered." in result
     assert "Action: error" not in result
+
+
+def test_run_agent_includes_prior_messages(monkeypatch, tmp_path: Path):
+    """run_agent should include prior chat context when provided."""
+    config = make_test_config(tmp_path)
+    captured_messages = []
+
+    def fake_complete(config, messages):
+        captured_messages.extend(messages)
+        return '{"type": "final", "answer": "I remember the previous turn."}'
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent(
+        config,
+        "What did I just ask?",
+        prior_messages=[
+            {
+                "role": "user",
+                "content": "My previous question was about Mind.",
+            },
+            {
+                "role": "assistant",
+                "content": "You asked about Mind.",
+            },
+        ],
+    )
+
+    assert result == "I remember the previous turn."
+    assert {
+        "role": "user",
+        "content": "My previous question was about Mind.",
+    } in captured_messages
+    assert {
+        "role": "assistant",
+        "content": "You asked about Mind.",
+    } in captured_messages
+    assert captured_messages[-1] == {
+        "role": "user",
+        "content": "What did I just ask?",
+    }
