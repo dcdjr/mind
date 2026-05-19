@@ -8,6 +8,7 @@ from mind.workspace import (
     list_workspace_files,
     read_workspace_file,
     write_workspace_file,
+    append_workspace_file,
 )
 
 
@@ -58,4 +59,27 @@ def tool_workspace_write_file(config: Config, args: dict[str, Any]) -> str:
         Path(path),
         content,
         overwrite=overwrite,
+    )
+
+
+def tool_workspace_append_file(config: Config, args: dict[str, Any]) -> str:
+    """Append text to a workspace-relative file path."""
+    path = args.get("path")
+    content = args.get("content")
+    create = args.get("create", True)
+
+    if not isinstance(path, str) or not path.strip():
+        return "Error: workspace.append_file requires a non-empty string argument named 'path'."
+
+    if not isinstance(content, str):
+        return "Error: workspace.append_file requires a string argument named 'content'."
+
+    if not isinstance(create, bool):
+        return "Error: workspace.append_file requires 'create' to be a boolean when provided."
+
+    return append_workspace_file(
+        config,
+        Path(path),
+        content,
+        create=create,
     )

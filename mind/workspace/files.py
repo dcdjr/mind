@@ -136,3 +136,59 @@ def write_workspace_file(
 
     action = "Overwrote" if overwrite else "Wrote"
     return f"{action} workspace file: {relative_path}"
+
+
+def append_workspace_file(
+    config: Config,
+    relative_path: Path,
+    content: str,
+    create: bool = True,
+) -> str:
+    """
+    Safely append text to a workspace-relative file.
+
+    This uses the same workspace boundary as read/write operations. It can create
+    the file by default because local-write permission and confirmation still
+    control whether the tool is allowed to run.
+    """
+    if len(content) > MAX_WORKSPACE_WRITE_CHARS:
+        return (
+            "Error: Content is too large. "
+            f"Maximum allowed size is {MAX_WORKSPACE_WRITE_CHARS} characters."
+        )
+
+    target, error = _resolve_workspace_target(config, relative_path)
+
+    if error is not None:
+        return error
+
+    assert target is not None
+
+    raw_target = config.paths.workspace / relative_path
+
+    if raw_target.is_symlink():
+        return f"Error: Refusing to append through symlink '{relative_path}'."
+
+    if target.exists() and target.is_dir():
+        return f"Error: '{relative_path}' is a directory, not a file."
+
+    if not target.exists() and not create:
+        return (
+            f"Error: File '{relative_path}' not found. "
+            "Set create=true to create it."
+        )
+
+    parent = target.parent
+
+    if parent.exists() and not parent.is_dir():
+        return f"Error: Parent path for '{relative_path}' is not a directory."
+
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+
+        with target.open("a", encoding="utf-8") as file:
+            file.write(content)
+    except Exception as error:
+        return f"Error appending file: {error}"
+
+    return f"Appended to workspace file: {relative_path}"

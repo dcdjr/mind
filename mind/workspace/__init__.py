@@ -1,4 +1,5 @@
 from mind.workspace.files import (
+    append_workspace_file,
     ensure_workspace,
     list_workspace_files,
     read_workspace_file,
@@ -6,6 +7,7 @@ from mind.workspace.files import (
 )
 
 __all__ = [
+    "append_workspace_file",
     "ensure_workspace",
     "list_workspace_files",
     "read_workspace_file",

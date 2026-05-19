@@ -47,7 +47,27 @@ def make_test_config(tmp_path: Path) -> Config:
             allow_external_write=False,
             allow_dangerous=False,
             require_confirmation=True,
-        )
+        ),
+    )
+
+
+def make_local_write_config(tmp_path: Path) -> Config:
+    """Create a test config where local write tools are explicitly enabled."""
+    base_config = make_test_config(tmp_path)
+
+    return Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=True,
+            allow_local_write=True,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
     )
 
 
@@ -133,6 +153,7 @@ def test_run_tool_wraps_tool_exceptions(monkeypatch, tmp_path: Path):
         args_description="{}",
         permission="read_only",
         function=broken_tool,
+        requires_confirmation=False,
     )
 
     monkeypatch.setitem(TOOL_REGISTRY, "test.broken", broken_spec)
@@ -158,7 +179,7 @@ def test_tool_registry_keys_match_tool_spec_names():
 
 
 def test_registered_tools_have_required_metadata():
-    """Every tool should include the metadata needed for prompts and future permissions."""
+    """Every tool should include the metadata needed for prompts and permissions."""
     for spec in TOOL_REGISTRY.values():
         assert spec.name
         assert spec.description
@@ -179,12 +200,18 @@ def test_format_available_tools_uses_tool_spec_metadata():
 
     assert "workspace.list_files" in formatted_tools
     assert "List files in the workspace." in formatted_tools
+
     assert "workspace.read_file" in formatted_tools
     assert '{"path": "notes.txt"}' in formatted_tools
-    assert "internet.github_zen" in formatted_tools
-    assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
+
     assert "workspace.write_file" in formatted_tools
     assert "Write text to a workspace-relative file." in formatted_tools
+
+    assert "internet.github_zen" in formatted_tools
+    assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
+
+    assert "workspace.append_file" in formatted_tools
+    assert "Append text to a workspace-relative file." in formatted_tools
 
 
 def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_path: Path):
@@ -259,6 +286,7 @@ def test_external_read_tool_runs_when_external_read_is_enabled(
         args_description="{}",
         permission="external_read",
         function=fake_external_read_tool,
+        requires_confirmation=False,
     )
 
     monkeypatch.setitem(TOOL_REGISTRY, "test.external_read", external_read_spec)
@@ -382,24 +410,14 @@ def test_workspace_write_file_tool_is_blocked_when_local_write_disabled(tmp_path
     assert not (config.paths.workspace / "notes.txt").exists()
 
 
-def test_workspace_write_file_tool_writes_when_local_write_enabled(tmp_path: Path):
-    """workspace.write_file should write files when local writes are explicitly enabled."""
-    base_config = make_test_config(tmp_path)
+def test_workspace_write_file_tool_writes_when_local_write_enabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.write_file should write files when local writes are enabled and confirmed."""
+    config = make_local_write_config(tmp_path)
 
-    config = Config(
-        assistant=base_config.assistant,
-        paths=base_config.paths,
-        model=base_config.model,
-        memory=base_config.memory,
-        context=base_config.context,
-        tools=ToolConfig(
-            allow_external_read=True,
-            allow_local_write=True,
-            allow_external_write=False,
-            allow_dangerous=False,
-            require_confirmation=True,
-        ),
-    )
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
 
     result = run_tool(
         config,
@@ -417,24 +435,62 @@ def test_workspace_write_file_tool_writes_when_local_write_enabled(tmp_path: Pat
     assert target.read_text(encoding="utf-8") == "hello from tool"
 
 
-def test_workspace_write_file_tool_rejects_missing_path(tmp_path: Path):
-    """workspace.write_file should validate that path is provided."""
-    base_config = make_test_config(tmp_path)
+def test_workspace_write_file_tool_accepts_yes_confirmation(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Confirmed tools should run when the user types yes."""
+    config = make_local_write_config(tmp_path)
 
-    config = Config(
-        assistant=base_config.assistant,
-        paths=base_config.paths,
-        model=base_config.model,
-        memory=base_config.memory,
-        context=base_config.context,
-        tools=ToolConfig(
-            allow_external_read=True,
-            allow_local_write=True,
-            allow_external_write=False,
-            allow_dangerous=False,
-            require_confirmation=True,
-        ),
+    monkeypatch.setattr("builtins.input", lambda prompt: "yes")
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": "confirmed",
+        },
     )
+
+    target = config.paths.workspace / "notes.txt"
+
+    assert result.success is True
+    assert "Wrote workspace file" in result.output
+    assert target.read_text(encoding="utf-8") == "confirmed"
+
+
+def test_workspace_write_file_tool_does_not_run_when_confirmation_is_denied(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Confirmed tools should not run when the user denies confirmation."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": "should not be written",
+        },
+    )
+
+    assert result.success is False
+    assert "did not confirm" in result.output
+    assert not (config.paths.workspace / "notes.txt").exists()
+
+
+def test_workspace_write_file_tool_rejects_missing_path(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.write_file should validate that path is provided."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
 
     result = run_tool(
         config,
@@ -449,24 +505,14 @@ def test_workspace_write_file_tool_rejects_missing_path(tmp_path: Path):
     assert "path" in result.output
 
 
-def test_workspace_write_file_tool_rejects_non_string_content(tmp_path: Path):
+def test_workspace_write_file_tool_rejects_non_string_content(
+    monkeypatch,
+    tmp_path: Path,
+):
     """workspace.write_file should validate that content is a string."""
-    base_config = make_test_config(tmp_path)
+    config = make_local_write_config(tmp_path)
 
-    config = Config(
-        assistant=base_config.assistant,
-        paths=base_config.paths,
-        model=base_config.model,
-        memory=base_config.memory,
-        context=base_config.context,
-        tools=ToolConfig(
-            allow_external_read=True,
-            allow_local_write=True,
-            allow_external_write=False,
-            allow_dangerous=False,
-            require_confirmation=True,
-        ),
-    )
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
 
     result = run_tool(
         config,
@@ -480,3 +526,200 @@ def test_workspace_write_file_tool_rejects_non_string_content(tmp_path: Path):
     assert result.success is True
     assert "Error:" in result.output
     assert "content" in result.output
+
+
+def test_workspace_write_file_tool_rejects_non_boolean_overwrite(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.write_file should validate that overwrite is a boolean when provided."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": "hello",
+            "overwrite": "yes",
+        },
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "overwrite" in result.output
+
+
+def test_workspace_append_file_tool_is_registered():
+    """The workspace append tool should be available in the registry."""
+    spec = TOOL_REGISTRY["workspace.append_file"]
+
+    assert spec.name == "workspace.append_file"
+    assert spec.permission == "local_write"
+    assert spec.requires_confirmation is True
+
+
+def test_workspace_append_file_tool_is_blocked_when_local_write_disabled(tmp_path: Path):
+    """workspace.append_file should fail closed when local writes are disabled."""
+    config = make_test_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "path": "notes.txt",
+            "content": "hello",
+        },
+    )
+
+    assert result.success is False
+    assert "Error:" in result.output
+    assert "local_write" in result.output
+    assert not (config.paths.workspace / "notes.txt").exists()
+
+
+def test_workspace_append_file_tool_appends_when_local_write_enabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.append_file should append when local writes are enabled and confirmed."""
+    config = make_local_write_config(tmp_path)
+
+    workspace = config.paths.workspace
+    workspace.mkdir(parents=True)
+    target = workspace / "notes.txt"
+    target.write_text("first\n", encoding="utf-8")
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "path": "notes.txt",
+            "content": "second\n",
+        },
+    )
+
+    assert result.success is True
+    assert "Appended to workspace file" in result.output
+    assert target.read_text(encoding="utf-8") == "first\nsecond\n"
+
+
+def test_workspace_append_file_tool_creates_missing_file_when_confirmed(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.append_file should create a missing file by default when confirmed."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "yes")
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "path": "notes.txt",
+            "content": "created\n",
+        },
+    )
+
+    target = config.paths.workspace / "notes.txt"
+
+    assert result.success is True
+    assert "Appended to workspace file" in result.output
+    assert target.read_text(encoding="utf-8") == "created\n"
+
+
+def test_workspace_append_file_tool_does_not_run_when_confirmation_is_denied(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Confirmed append tools should not run when the user denies confirmation."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "path": "notes.txt",
+            "content": "should not be written",
+        },
+    )
+
+    assert result.success is False
+    assert "did not confirm" in result.output
+    assert not (config.paths.workspace / "notes.txt").exists()
+
+
+def test_workspace_append_file_tool_rejects_missing_path(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.append_file should validate that path is provided."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "content": "hello",
+        },
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "path" in result.output
+
+
+def test_workspace_append_file_tool_rejects_non_string_content(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.append_file should validate that content is a string."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "path": "notes.txt",
+            "content": 123,
+        },
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "content" in result.output
+
+
+def test_workspace_append_file_tool_rejects_non_boolean_create(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """workspace.append_file should validate that create is a boolean when provided."""
+    config = make_local_write_config(tmp_path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
+    result = run_tool(
+        config,
+        "workspace.append_file",
+        {
+            "path": "notes.txt",
+            "content": "hello",
+            "create": "yes",
+        },
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "create" in result.output

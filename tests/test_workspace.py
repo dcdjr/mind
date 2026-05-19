@@ -16,6 +16,7 @@ from mind.workspace import (
     list_workspace_files,
     read_workspace_file,
     write_workspace_file,
+    append_workspace_file,
 )
 
 
@@ -316,6 +317,156 @@ def test_write_workspace_file_rejects_directory_target(test_config: Config):
 def test_write_workspace_file_rejects_oversized_content(test_config: Config):
     """The writer should reject content that exceeds the configured safety cap."""
     result = write_workspace_file(
+        test_config,
+        Path("huge.txt"),
+        "A" * 100_001,
+    )
+
+    assert "Error:" in result
+    assert "too large" in result
+    assert not (test_config.paths.workspace / "huge.txt").exists()
+
+
+def test_append_workspace_file_appends_to_existing_file(test_config: Config):
+    """Appending should preserve existing content and add the new content at the end."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+    target = workspace / "notes.txt"
+    target.write_text("first line\n", encoding="utf-8")
+
+    result = append_workspace_file(
+        test_config,
+        Path("notes.txt"),
+        "second line\n",
+    )
+
+    assert "Appended to workspace file" in result
+    assert target.read_text(encoding="utf-8") == "first line\nsecond line\n"
+
+
+def test_append_workspace_file_creates_missing_file_by_default(test_config: Config):
+    """Appending should create a missing file when create=True by default."""
+    result = append_workspace_file(
+        test_config,
+        Path("notes.txt"),
+        "created by append\n",
+    )
+
+    target = test_config.paths.workspace / "notes.txt"
+
+    assert "Appended to workspace file" in result
+    assert target.read_text(encoding="utf-8") == "created by append\n"
+
+
+def test_append_workspace_file_rejects_missing_file_when_create_is_false(
+    test_config: Config,
+):
+    """Appending should reject missing files when create=False."""
+    result = append_workspace_file(
+        test_config,
+        Path("notes.txt"),
+        "should not be written",
+        create=False,
+    )
+
+    assert "Error:" in result
+    assert "not found" in result
+    assert not (test_config.paths.workspace / "notes.txt").exists()
+
+
+def test_append_workspace_file_creates_nested_parent_directories(test_config: Config):
+    """Appending to a nested file should create parent directories inside the workspace."""
+    result = append_workspace_file(
+        test_config,
+        Path("logs/devlog.md"),
+        "entry\n",
+    )
+
+    target = test_config.paths.workspace / "logs" / "devlog.md"
+
+    assert "Appended to workspace file" in result
+    assert target.exists()
+    assert target.read_text(encoding="utf-8") == "entry\n"
+
+
+def test_append_workspace_file_rejects_absolute_path(test_config: Config, tmp_path: Path):
+    """Workspace appends should reject absolute paths."""
+    outside_file = tmp_path / "outside.txt"
+
+    result = append_workspace_file(
+        test_config,
+        outside_file,
+        "do not write this",
+    )
+
+    assert "Error:" in result
+    assert "Absolute paths are not allowed" in result
+    assert not outside_file.exists()
+
+
+def test_append_workspace_file_rejects_parent_directory_traversal(
+    test_config: Config,
+    tmp_path: Path,
+):
+    """Workspace appends should not allow ../ paths to escape the workspace."""
+    outside_file = tmp_path / "secret.txt"
+
+    result = append_workspace_file(
+        test_config,
+        Path("../secret.txt"),
+        "do not write this",
+    )
+
+    assert "Error:" in result
+    assert "Access denied" in result
+    assert not outside_file.exists()
+
+
+def test_append_workspace_file_rejects_symlink_escape(
+    test_config: Config,
+    tmp_path: Path,
+):
+    """A symlink inside the workspace should not allow appends outside the workspace."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+
+    symlink_path = workspace / "link"
+
+    try:
+        symlink_path.symlink_to(outside_dir, target_is_directory=True)
+    except OSError:
+        pytest.skip("Symlink creation is not supported in this environment.")
+
+    result = append_workspace_file(
+        test_config,
+        Path("link/secret.txt"),
+        "do not write this",
+    )
+
+    assert "Error:" in result
+    assert "Access denied" in result
+    assert not (outside_dir / "secret.txt").exists()
+
+
+def test_append_workspace_file_rejects_directory_target(test_config: Config):
+    """The appender should reject attempts to append text to a directory path."""
+    workspace = ensure_workspace(test_config.paths.workspace)
+    (workspace / "folder").mkdir()
+
+    result = append_workspace_file(
+        test_config,
+        Path("folder"),
+        "content",
+    )
+
+    assert "Error:" in result
+    assert "directory" in result
+
+
+def test_append_workspace_file_rejects_oversized_content(test_config: Config):
+    """The appender should reject content that exceeds the configured safety cap."""
+    result = append_workspace_file(
         test_config,
         Path("huge.txt"),
         "A" * 100_001,

@@ -11,6 +11,7 @@ from mind.tools.workspace import (
     tool_workspace_list_files,
     tool_workspace_read_file,
     tool_workspace_write_file,
+    tool_workspace_append_file,
 )
 
 
@@ -37,6 +38,14 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         args_description='{"path": "notes.txt", "content": "text", "overwrite": false}',
         permission="local_write",
         function=tool_workspace_write_file,
+        requires_confirmation=True,
+    ),
+    "workspace.append_file": ToolSpec(
+        name="workspace.append_file",
+        description="Append text to a workspace-relative file.",
+        args_description='{"path": "notes.txt", "content": "text", "create": true}',
+        permission="local_write",
+        function=tool_workspace_append_file,
         requires_confirmation=True,
     ),
     "memory.list": ToolSpec(
@@ -90,6 +99,20 @@ def run_tool(config: Config, tool_name: str, args: dict[str, Any] | None = None)
                 f"'{spec.permission}', but that permission is disabled."
             )
         )
+
+    if spec.requires_confirmation is True:
+        user_confirmation = input(
+            f"Tool: {tool_name}\n"
+            f"Args: {safe_args}\n"
+            "This tool requires confirmation to be run.\n"
+            "Run this tool? (y/n): "
+        ).strip().lower()
+
+        if user_confirmation not in {"y", "yes"}:
+            return ToolResult.failure_result(
+                tool_name=tool_name,
+                error=f"User did not confirm that {tool_name} can be run.",
+            )
 
     try:
         output = spec.function(config, safe_args)
