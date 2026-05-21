@@ -1,5 +1,8 @@
 # Mind
 
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 Mind is a lightweight local-first personal AI assistant runtime.
 
 It is designed to run on your own machine, use a local model through Ollama, read and write files only through controlled local boundaries, maintain persistent memory, and expose a safe permissioned tool system for extending the assistant with custom Python capabilities.
