@@ -2,7 +2,7 @@
 
 Mind is a lightweight local-first personal AI assistant runtime.
 
-The project started as a small local CLI, but it is now organized around a package-based architecture designed to support memory, workspace context, agent loops, and safe tool execution.
+The project is organized around small layers: CLI parsing, runtime modes, core infrastructure, memory, workspace/codebase access, an agent loop, and a permissioned tool registry. The central design rule is that the model may request capabilities, but Python decides what exists, what is allowed, and how it runs.
 
 ## High-Level Flow
 
@@ -21,7 +21,7 @@ Core infrastructure
   - diagnostics
   - LLM client
 ↓
-Memory / Workspace / Agent Tool Context
+Memory / Workspace / Codebase / Tool Context
 ↓
 Local LLM
 ↓
@@ -41,9 +41,13 @@ Agent protocol parser
 ↓
 Tool registry
 ↓
+Permission check
+↓
+Optional confirmation callback
+↓
 Approved Python tool function
 ↓
-Text tool result
+Structured ToolResult
 ↓
 Local LLM final answer
 ```
@@ -63,6 +67,7 @@ mind/
     __init__.py
     ask.py
     chat.py
+    confirmation.py
 
   core/
     __init__.py
@@ -77,12 +82,16 @@ mind/
     loop.py
     protocol.py
     prompts.py
+    trace.py
 
   tools/
     __init__.py
     registry.py
+    spec.py
+    result.py
     workspace.py
     memory.py
+    codebase.py
     internet.py
 
   memory/
@@ -91,6 +100,10 @@ mind/
     extractor.py
 
   workspace/
+    __init__.py
+    files.py
+
+  codebase/
     __init__.py
     files.py
 ```
@@ -114,14 +127,15 @@ mind = "mind.cli:main"
 
 ### `mind/runtime/`
 
-The runtime package owns user-facing assistant modes that are not strictly command parsing.
+The runtime package owns user-facing assistant modes and terminal-specific behavior.
 
 ```text
-mind/runtime/ask.py   one-shot prompt execution
-mind/runtime/chat.py  interactive chat loop and automatic memory extraction
+mind/runtime/ask.py            one-shot prompt execution
+mind/runtime/chat.py           interactive chat loop and automatic memory extraction
+mind/runtime/confirmation.py   terminal confirmation callback for confirmed tools
 ```
 
-The CLI calls into runtime functions, but runtime code does not own CLI parsing.
+Runtime code may prompt the user. Tool registry code should not directly call `input()`.
 
 ### `mind/core/`
 
@@ -135,7 +149,7 @@ mind/core/llm.py          Ollama client calls
 mind/core/prompt.py       base system prompt and message construction
 ```
 
-This package should stay small and stable. Feature-specific logic should not be added here unless it is genuinely shared infrastructure.
+`Config` currently includes assistant, path, model, memory, context, project, and tool-permission settings.
 
 ### `mind/agent/`
 
@@ -145,6 +159,7 @@ The agent package owns the tool-using agent loop.
 mind/agent/loop.py      bounded agent execution loop
 mind/agent/protocol.py  JSON extraction/parsing from model output
 mind/agent/prompts.py   agent-specific system prompt
+mind/agent/trace.py     human-readable trace formatting
 ```
 
 The agent uses a strict JSON protocol. The model may return either a tool call:
@@ -159,7 +174,7 @@ or a final answer:
 {"type": "final", "answer": "Your answer here."}
 ```
 
-The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops.
+The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops. It supports one repair attempt for invalid agent JSON and can include prior chat messages when running in tool-enabled chat.
 
 ### `mind/tools/`
 
@@ -167,7 +182,10 @@ The tools package owns Mind's controlled capability surface.
 
 ```text
 mind/tools/registry.py   tool registry, public tool runner, prompt formatting
+mind/tools/spec.py       ToolSpec and permission-level types
+mind/tools/result.py     structured ToolResult object
 mind/tools/workspace.py  workspace-related tools
+mind/tools/codebase.py   codebase-related tools
 mind/tools/memory.py     memory-related tools
 mind/tools/internet.py   external read-only tools
 ```
@@ -177,7 +195,11 @@ The current registry includes:
 ```text
 workspace.list_files
 workspace.read_file
+workspace.write_file
+workspace.append_file
 memory.list
+codebase.list_files
+codebase.read_file
 internet.github_zen
 ```
 
@@ -188,7 +210,7 @@ def tool_name(config: Config, args: dict[str, Any]) -> str:
     ...
 ```
 
-The model does not execute arbitrary Python. It requests a tool by name, and Mind only runs tools that exist in the registry.
+The model does not execute arbitrary Python. It requests a tool by name, and Mind only runs tools that exist in the registry and pass permission checks.
 
 ### `mind/memory/`
 
@@ -221,13 +243,23 @@ semantic retrieval
 
 ### `mind/workspace/`
 
-The workspace package owns safe local file access.
+The workspace package owns safe local file access inside the configured workspace.
 
 ```text
-mind/workspace/files.py  workspace creation, listing, and safe file reading
+mind/workspace/files.py  workspace creation, listing, safe reading, safe writing, and safe appending
 ```
 
-Workspace paths are interpreted relative to the configured workspace directory. The reader rejects parent-directory traversal and symlink escapes.
+Workspace paths are interpreted relative to the configured workspace directory. The reader/writer/appender reject absolute paths, parent-directory traversal, and symlink escapes. Write and append operations are size-limited.
+
+### `mind/codebase/`
+
+The codebase package owns read-only project inspection.
+
+```text
+mind/codebase/files.py  project file listing and safe project-relative file reading
+```
+
+Codebase tools read from the configured project root and ignore runtime/build/cache paths such as `.git`, `.venv`, `data`, `workspace`, `dist`, and `build`.
 
 ## Tool Execution Boundary
 
@@ -240,14 +272,34 @@ JSON parser
 ↓
 Tool name lookup
 ↓
+Permission check
+↓
+Optional confirmation callback
+↓
 Argument validation inside tool wrapper
 ↓
 Approved Python function
 ↓
-Plain text result
+Structured ToolResult
 ```
 
 This boundary matters because the model is not trusted to execute code directly. The model can request capabilities, but Python decides what is allowed.
+
+## Confirmation Boundary
+
+Confirmed tools are handled through dependency injection:
+
+```text
+interactive CLI/runtime
+↓
+confirm_tool_run(spec)
+↓
+run_agent(..., confirm=confirm_tool_run)
+↓
+run_tool(..., confirm=confirm_tool_run)
+```
+
+If a tool requires confirmation and no confirmation handler is provided, `run_tool()` fails closed with a failed `ToolResult`. This keeps terminal UI behavior out of the core registry and makes tests, future APIs, and future non-terminal runtimes easier to support.
 
 ## Current Safety Properties
 
@@ -255,27 +307,35 @@ Mind currently includes these safety boundaries:
 
 ```text
 - workspace-relative file access
-- rejection of path traversal outside workspace
-- rejection of symlink escapes outside workspace
+- project-root-relative codebase access
+- rejection of path traversal outside workspace/project root
+- rejection of symlink escapes
+- ignored runtime/build/cache paths for codebase tools
+- default-disabled local write permission
+- confirmation-required local write tools
+- overwrite protection for workspace writes
+- size caps on workspace writes/appends and codebase reads
 - bounded agent loop
 - explicit tool registry
-- plain text tool results
+- structured agent protocol validation
+- structured ToolResult objects
+- configurable tool permission enforcement
 - no arbitrary shell execution
 - no external write tools
 ```
 
 ## Planned Foundation Improvements
 
-Before adding high-impact integrations, the foundation should be strengthened in this order:
+Before high-impact integrations, the foundation should be strengthened in this order:
 
 ```text
-1. stronger agent protocol validation
-2. structured ToolResult objects
-3. tool permission levels
-4. memory schema improvements
-5. memory review and deduplication
-6. safe workspace write tools
-7. project status tools
+1. project devlog/status tools
+2. memory schema improvements
+3. memory review and deduplication
+4. mission/run history
+5. read-only Git/project status tools
+6. controlled test runner with explicit local-execute permission
+7. model provider abstraction
 ```
 
 ## Long-Term Direction
@@ -287,14 +347,13 @@ Possible future directions include:
 ```text
 - semantic memory retrieval
 - local file RAG
-- safe workspace writing
+- persistent missions/checkpoints
 - project status generation
 - GitHub tooling
 - email draft creation
 - calendar tools
 - browser or web-search tools
-- long-running task traces and checkpoints
+- cloud/local model routing
 ```
 
 The core architectural principle is that new capabilities should be added as small, controlled tools rather than as unrestricted model behavior.
-

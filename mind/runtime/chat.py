@@ -6,6 +6,7 @@ from mind.core.context import build_context
 from mind.core.llm import complete
 from mind.core.prompt import build_initial_chat_messages
 from mind.memory import add_memory, extract_memories, memory_exists
+from mind.runtime.confirmation import confirm_tool_run
 
 
 def maybe_extract_and_store_memories(
@@ -87,6 +88,7 @@ def run_chat(
                 user_input,
                 trace=trace,
                 prior_messages=agent_history,
+                confirm=confirm_tool_run,
             )
             history_response = _strip_trace_for_history(response)
 
@@ -131,3 +133,5 @@ def run_chat(
         print()
 
         maybe_extract_and_store_memories(config, user_input, response)
+
+

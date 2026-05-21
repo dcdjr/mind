@@ -2,7 +2,7 @@
 
 Mind is a lightweight local-first personal AI assistant runtime.
 
-It is designed to run on your own machine, use a local model through Ollama, read files from a controlled workspace, maintain persistent memory, and expose a safe permissioned tool system for extending the assistant with custom Python capabilities.
+It is designed to run on your own machine, use a local model through Ollama, read and write files only through controlled local boundaries, maintain persistent memory, and expose a safe permissioned tool system for extending the assistant with custom Python capabilities.
 
 Mind is not meant to be a thin wrapper around an API. The goal is to build a local-first assistant architecture that stays understandable, extensible, inspectable, and safe.
 
@@ -32,21 +32,26 @@ Implemented:
 - Config-driven local model settings
 - Workspace-relative file access
 - Safe workspace file reading
+- Safe workspace file writing and appending
+- Project-root-relative codebase reading tools
 - Centralized context building
 - SQLite-backed persistent memory
 - Memory context injection into prompts
 - Experimental automatic memory extraction during chat
 - Bounded tool-using agent loop
+- Tool-enabled chat history
 - Strict JSON agent protocol parsing
-- One retry for invalid agent protocol output
+- One repair attempt for invalid agent protocol output
 - Structured `ToolResult` objects
 - Tool registry for controlled Python capabilities
 - Tool permission metadata
 - Configurable tool permission enforcement
-- Workspace, memory, and internet tool modules
+- Confirmation metadata for higher-impact tools
+- Interactive confirmation callback for confirmed tools
+- Workspace, codebase, memory, and internet tool modules
 - Read-only external API tool example
 - Agent trace/debug output
-- Unit tests for CLI routing, context building, memory, workspace access, prompt construction, agent behavior, tool execution, and tool permissions
+- Unit tests for CLI routing, context building, memory, workspace access, codebase access, prompt construction, agent behavior, tool execution, and tool permissions
 
 ## Requirements
 
@@ -109,6 +114,9 @@ max_relevant_memories = 8
 [context]
 max_workspace_chars = 12000
 
+[project]
+root = "."
+
 [tools]
 allow_external_read = true
 allow_local_write = false
@@ -152,7 +160,9 @@ allow_dangerous = false
 require_confirmation = true
 ```
 
-For example, `internet.github_zen` is an `external_read` tool. If `allow_external_read = false`, Mind should block that tool and return a failed `ToolResult` instead of making the external request.
+For example, `internet.github_zen` is an `external_read` tool. If `allow_external_read = false`, Mind blocks that tool and returns a failed `ToolResult` instead of making the external request.
+
+`workspace.write_file` and `workspace.append_file` are `local_write` tools. They exist, but they are disabled by the default config. When local writes are enabled, they still require confirmation when `require_confirmation = true`.
 
 ## Usage
 
@@ -248,13 +258,13 @@ mind tools
 
 ## Workspace
 
-Mind only reads files from the configured workspace directory:
+Mind reads, writes, and appends files only inside the configured workspace directory:
 
 ```text
 workspace/
 ```
 
-File paths passed to `--files` are interpreted as workspace-relative paths.
+File paths passed to `--files` and workspace tools are interpreted as workspace-relative paths.
 
 For example:
 
@@ -268,7 +278,57 @@ reads:
 workspace/project-notes.md
 ```
 
-Mind rejects paths that attempt to escape the workspace, including parent-directory traversal and symlink escapes.
+Mind rejects paths that attempt to escape the workspace, including absolute paths, parent-directory traversal, and symlink escapes.
+
+Workspace write tools are conservative:
+
+```text
+workspace.write_file
+workspace.append_file
+```
+
+Safety behavior:
+
+```text
+- local writes are disabled by default
+- write/append tools require confirmation when confirmation is enabled
+- write refuses to overwrite existing files unless overwrite=true
+- append can create missing files only when create=true
+- content size is capped
+- parent directories are created only after the target path passes workspace-boundary checks
+```
+
+## Codebase Tools
+
+Mind has read-only codebase tools for inspecting the configured project root:
+
+```text
+codebase.list_files
+codebase.read_file
+```
+
+The project root is configured with:
+
+```toml
+[project]
+root = "."
+```
+
+Codebase tools ignore runtime/build/cache paths such as:
+
+```text
+.git
+.venv
+__pycache__
+.pytest_cache
+data
+workspace
+build
+dist
+*.egg-info
+```
+
+These tools are intended to let Mind inspect its own repo without arbitrary shell access.
 
 ## Memory
 
@@ -325,21 +385,40 @@ When the model requests a tool, Mind:
 2. Validates the response as either a `ToolCall` or `FinalAnswer`.
 3. Looks up the requested tool in the registry.
 4. Checks the tool's permission level against config.
-5. Runs only the approved Python function.
-6. Wraps the result in a structured `ToolResult`.
-7. Feeds the result back to the model.
-8. Asks for either another tool call or a final answer.
+5. Runs confirmation if the tool requires it and confirmation is enabled.
+6. Runs only the approved Python function.
+7. Wraps the result in a structured `ToolResult`.
+8. Feeds the result back to the model.
+9. Asks for either another tool call or a final answer.
 
 The current tool registry includes:
 
 ```text
 workspace.list_files
 workspace.read_file
+workspace.write_file
+workspace.append_file
 memory.list
+codebase.list_files
+codebase.read_file
 internet.github_zen
 ```
 
-The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, and how it runs.
+The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, whether it needs confirmation, and how it runs.
+
+## Confirmation Model
+
+Confirmed tools do not call `input()` from the tool registry. Instead, interactive runtimes pass a confirmation callback into the agent/tool runner.
+
+```text
+CLI/runtime confirmation callback
+↓
+run_agent(..., confirm=confirm_tool_run)
+↓
+run_tool(..., confirm=confirm_tool_run)
+```
+
+If a confirmed tool is called without a confirmation handler, Mind fails closed and returns a failed `ToolResult`.
 
 ## Agent Trace Mode
 
@@ -370,7 +449,7 @@ Action: final
 Answer: Your workspace contains notes.txt.
 ```
 
-Trace mode is useful for debugging tool selection, permission failures, protocol failures, and agent loops.
+Trace mode is useful for debugging tool selection, permission failures, protocol failures, confirmations, and agent loops.
 
 ## Architecture
 
@@ -397,22 +476,24 @@ Tool registry
 ↓
 Tools
   - workspace
+  - codebase
   - memory
   - internet
 ↓
-Workspace / SQLite / External APIs
+Workspace / Codebase / SQLite / External APIs
 ```
 
 Current package responsibilities:
 
 ```text
 mind/cli/        CLI parser and command handlers
-mind/runtime/    ask and chat runtime flows
+mind/runtime/    ask/chat runtime flows and interactive confirmation
 mind/core/       config, context, prompts, diagnostics, and LLM client
 mind/agent/      bounded agent loop, protocol parsing, trace output, and agent prompts
 mind/tools/      tool registry, tool specs, tool results, permission checks, and tool implementations
 mind/memory/     SQLite memory store and memory extraction
 mind/workspace/  safe workspace file access
+mind/codebase/   safe read-only codebase file access
 ```
 
 ## Safety Model
@@ -421,16 +502,21 @@ Mind's current safety boundaries:
 
 ```text
 - workspace-relative file access
-- rejection of path traversal outside workspace
-- rejection of symlink escapes outside workspace
+- project-root-relative codebase access
+- rejection of path traversal outside workspace/project root
+- rejection of symlink escapes
+- ignored runtime/build/cache paths for codebase tools
+- default-disabled local write permission
+- confirmation-required local write tools
+- overwrite protection for workspace writes
+- content size caps for workspace writes/appends
 - bounded agent loop
 - explicit tool registry
 - structured agent protocol validation
 - structured tool results
 - configurable tool permission enforcement
 - no arbitrary shell execution
-- no local write tools enabled yet
-- no external write tools enabled yet
+- no external write tools enabled
 ```
 
 Mind is intentionally conservative. New capabilities should be added as small controlled tools, not as unrestricted model behavior.
@@ -447,6 +533,7 @@ Run targeted tests:
 
 ```bash
 pytest tests/test_workspace.py
+pytest tests/test_codebase.py
 pytest tests/test_tools.py
 pytest tests/test_agent.py
 ```
@@ -462,7 +549,8 @@ The tests currently cover:
 - Memory formatting
 - Automatic memory extraction parsing
 - Workspace file listing
-- Safe workspace file reading
+- Safe workspace file reading, writing, and appending
+- Codebase file listing and reading
 - Prompt construction
 - Config loading
 - Agent JSON parsing
@@ -472,7 +560,8 @@ The tests currently cover:
 - Tool registry behavior
 - Structured tool results
 - Tool permission enforcement
-- Workspace and memory tools
+- Tool confirmation behavior
+- Workspace, codebase, memory, and internet tools
 
 ## Development Roadmap
 
@@ -486,21 +575,20 @@ Planned development stages:
 6. Tool registry and controlled tool execution
 7. Tool metadata and permission enforcement
 8. Agent trace/debug mode
-9. Memory review, deduplication, and schema improvements
-10. Safe local write tools
+9. Safe local write and append tools
+10. Read-only codebase tools
 11. Project/devlog/status tools
-12. Optional retrieval-augmented generation over local files and memories
-13. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
+12. Memory review, deduplication, and schema improvements
+13. Optional retrieval-augmented generation over local files and memories
+14. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
 
 Near-term next steps:
 
 ```text
-1. Add confirmation metadata to ToolSpec.
-2. Show confirmation metadata in `mind tools`.
-3. Add safe workspace write tools.
-4. Add safe workspace append tools.
-5. Add project devlog/status tools.
-6. Improve memory schema and review workflow.
+1. Add project devlog/status tools.
+2. Improve memory schema and review workflow.
+3. Add mission/run history.
+4. Add read-only Git/project status tools.
 ```
 
 ## Design Goals

@@ -246,7 +246,7 @@ def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: P
 
     agent_calls = []
 
-    def fake_run_agent(config, prompt, trace=False, prior_messages=None):
+    def fake_run_agent(config, prompt, trace=False, prior_messages=None, confirm=None):
         agent_calls.append((prompt, trace, list(prior_messages or [])))
         return "agent response"
 
@@ -293,7 +293,7 @@ def test_run_chat_with_tools_preserves_agent_history(
 
     agent_calls = []
 
-    def fake_run_agent(config, prompt, trace=False, prior_messages=None):
+    def fake_run_agent(config, prompt, trace=False, prior_messages=None, confirm=None):
         agent_calls.append((prompt, list(prior_messages or [])))
 
         if prompt == "first":
@@ -382,3 +382,5 @@ def test_run_chat_without_tools_uses_normal_model_path(capsys, monkeypatch, tmp_
     assert "Mind chat. Type /exit or /quit to quit." in captured.out
     assert "normal response" in captured.out
     assert complete_calls == [{"role": "user", "content": "hello"}]
+
+

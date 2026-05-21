@@ -176,8 +176,8 @@ def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Pa
     def fake_complete(config, messages):
         return next(responses)
 
-    def fake_run_tool(config, tool_name, args):
-        tool_calls.append((tool_name, args))
+    def fake_run_tool(config, tool_name, args, confirm=None):
+        tool_calls.append((tool_name, args, confirm))
         return ToolResult.success_result(tool_name, "Workspace is empty.")
 
     monkeypatch.setattr(agent, "complete", fake_complete)
@@ -186,7 +186,7 @@ def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Pa
     result = agent.run_agent(config, "what files are in my workspace?")
 
     assert result == "Your workspace is empty."
-    assert tool_calls == [("workspace.list_files", {})]
+    assert tool_calls == [("workspace.list_files", {}, None)]
 
 
 def test_run_agent_retries_once_after_invalid_json(monkeypatch, tmp_path: Path):
@@ -289,7 +289,7 @@ def test_run_agent_stops_after_max_steps(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         agent,
         "run_tool",
-        lambda config, tool_name, args: ToolResult.success_result(
+        lambda config, tool_name, args, confirm=None: ToolResult.success_result(
             tool_name,
             "Workspace is empty.",
         ),
@@ -319,7 +319,7 @@ def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         agent,
         "run_tool",
-        lambda config, tool_name, args: ToolResult.success_result(
+        lambda config, tool_name, args, confirm=None: ToolResult.success_result(
             tool_name,
             "Workspace is empty.",
         ),
@@ -436,3 +436,20 @@ def test_run_agent_includes_prior_messages(monkeypatch, tmp_path: Path):
         "role": "user",
         "content": "What did I just ask?",
     }
+
+
+
+
+def test_run_agent_returns_model_call_errors(monkeypatch, tmp_path: Path):
+    """Model call failures should become user-facing agent errors."""
+    config = make_test_config(tmp_path)
+
+    def broken_complete(config, messages):
+        raise RuntimeError("ollama down")
+
+    monkeypatch.setattr(agent, "complete", broken_complete)
+
+    result = agent.run_agent(config, "hello")
+
+    assert "Agent model call failed" in result
+    assert "ollama down" in result

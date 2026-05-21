@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from mind.core.config import Config
+from mind.tools.codebase import (
+    tool_codebase_list_files,
+    tool_codebase_read_file,
+)
 from mind.tools.internet import tool_internet_github_zen
 from mind.tools.memory import tool_memory_list
 from mind.tools.result import ToolResult
@@ -12,10 +17,6 @@ from mind.tools.workspace import (
     tool_workspace_list_files,
     tool_workspace_read_file,
     tool_workspace_write_file,
-)
-from mind.tools.codebase import (
-    tool_codebase_read_file,
-    tool_codebase_list_files,
 )
 
 
@@ -108,6 +109,7 @@ def run_tool(
     config: Config,
     tool_name: str,
     args: dict[str, Any] | None = None,
+    confirm: Callable[[ToolSpec], bool] | None = None,
 ) -> ToolResult:
     """Run a known safe internal Mind tool by name."""
     if tool_name not in TOOL_REGISTRY:
@@ -128,18 +130,20 @@ def run_tool(
             ),
         )
 
-    if spec.requires_confirmation is True and config.tools.require_confirmation:
-        user_confirmation = input(
-            f"Tool: {tool_name}\n"
-            f"Args: {safe_args}\n"
-            "This tool requires confirmation to be run.\n"
-            "Run this tool? (y/n): "
-        ).strip().lower()
-
-        if user_confirmation not in {"y", "yes"}:
+    if config.tools.require_confirmation and spec.requires_confirmation:
+        if confirm is None:
             return ToolResult.failure_result(
                 tool_name=tool_name,
-                error=f"User did not confirm that {tool_name} can be run.",
+                error=(
+                    f"Tool '{tool_name}' requires confirmation, "
+                    "but no confirmation handler was provided."
+                ),
+            )
+
+        if not confirm(spec):
+            return ToolResult.failure_result(
+                tool_name=tool_name,
+                error=f"User did not confirm tool '{tool_name}'.",
             )
 
     try:

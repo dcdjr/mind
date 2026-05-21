@@ -9,6 +9,7 @@ from mind.runtime.ask import ask_once
 from mind.runtime.chat import run_chat
 from mind.agent import run_agent
 from mind.tools import TOOL_REGISTRY, ToolSpec
+from mind.runtime.confirmation import confirm_tool_run
 
 
 def run_files_command(config: Config) -> int:
@@ -109,7 +110,7 @@ def run_ask_command(
             print("Error: --files cannot be used with --tools yet.")
             return 1
 
-        response = run_agent(config, prompt, trace=trace)
+        response = run_agent(config, prompt, trace=trace, confirm=confirm_tool_run)
         print(response)
         return 0
 
@@ -175,3 +176,5 @@ def run_tools_command() -> int:
             print_tool(spec)         
 
     return 0
+
+

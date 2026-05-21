@@ -499,11 +499,31 @@ def test_workspace_write_file_tool_is_blocked_when_local_write_disabled(tmp_path
             "path": "notes.txt",
             "content": "hello",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is False
     assert "Error:" in result.output
     assert "local_write" in result.output
+    assert not (config.paths.workspace / "notes.txt").exists()
+
+
+def test_confirmed_tool_fails_closed_without_confirmation_handler(tmp_path: Path):
+    """Confirmed tools should not run unless a confirmation callback is supplied."""
+    config = make_local_write_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "workspace.write_file",
+        {
+            "path": "notes.txt",
+            "content": "should not be written",
+        },
+    )
+
+    assert result.success is False
+    assert "requires confirmation" in result.output
+    assert "no confirmation handler" in result.output
     assert not (config.paths.workspace / "notes.txt").exists()
 
 
@@ -523,6 +543,7 @@ def test_workspace_write_file_tool_writes_when_local_write_enabled(
             "path": "notes.txt",
             "content": "hello from tool",
         },
+        confirm=lambda spec: True,
     )
 
     target = config.paths.workspace / "notes.txt"
@@ -548,6 +569,7 @@ def test_workspace_write_file_tool_accepts_yes_confirmation(
             "path": "notes.txt",
             "content": "confirmed",
         },
+        confirm=lambda spec: True,
     )
 
     target = config.paths.workspace / "notes.txt"
@@ -573,6 +595,7 @@ def test_workspace_write_file_tool_does_not_run_when_confirmation_is_denied(
             "path": "notes.txt",
             "content": "should not be written",
         },
+        confirm=lambda spec: False,
     )
 
     assert result.success is False
@@ -595,6 +618,7 @@ def test_workspace_write_file_tool_rejects_missing_path(
         {
             "content": "hello",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
@@ -618,6 +642,7 @@ def test_workspace_write_file_tool_rejects_non_string_content(
             "path": "notes.txt",
             "content": 123,
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
@@ -642,6 +667,7 @@ def test_workspace_write_file_tool_rejects_non_boolean_overwrite(
             "content": "hello",
             "overwrite": "yes",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
@@ -669,6 +695,7 @@ def test_workspace_append_file_tool_is_blocked_when_local_write_disabled(tmp_pat
             "path": "notes.txt",
             "content": "hello",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is False
@@ -698,6 +725,7 @@ def test_workspace_append_file_tool_appends_when_local_write_enabled(
             "path": "notes.txt",
             "content": "second\n",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
@@ -721,6 +749,7 @@ def test_workspace_append_file_tool_creates_missing_file_when_confirmed(
             "path": "notes.txt",
             "content": "created\n",
         },
+        confirm=lambda spec: True,
     )
 
     target = config.paths.workspace / "notes.txt"
@@ -746,6 +775,7 @@ def test_workspace_append_file_tool_does_not_run_when_confirmation_is_denied(
             "path": "notes.txt",
             "content": "should not be written",
         },
+        confirm=lambda spec: False,
     )
 
     assert result.success is False
@@ -768,6 +798,7 @@ def test_workspace_append_file_tool_rejects_missing_path(
         {
             "content": "hello",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
@@ -791,6 +822,7 @@ def test_workspace_append_file_tool_rejects_non_string_content(
             "path": "notes.txt",
             "content": 123,
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
@@ -815,8 +847,11 @@ def test_workspace_append_file_tool_rejects_non_boolean_create(
             "content": "hello",
             "create": "yes",
         },
+        confirm=lambda spec: True,
     )
 
     assert result.success is True
     assert "Error:" in result.output
     assert "create" in result.output
+
+

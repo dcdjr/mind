@@ -214,11 +214,12 @@ def test_run_ask_command_uses_agent_when_tools_enabled(monkeypatch, tmp_path: Pa
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_run_agent(config, prompt, trace=False):
+    def fake_run_agent(config, prompt, trace=False, confirm=None):
         nonlocal called
         assert config == test_config
         assert prompt == "what files are in my workspace?"
         assert trace is True
+        assert confirm is commands.confirm_tool_run
         called = True
         return "agent answer"
 
@@ -526,3 +527,5 @@ def test_run_agent_command_delegates_to_tool_enabled_ask(monkeypatch, tmp_path: 
 
     assert exit_code == 0
     assert called is True
+
+

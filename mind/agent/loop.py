@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 from mind.agent.prompts import build_agent_system_prompt
 from mind.agent.protocol import (
@@ -12,7 +13,7 @@ from mind.agent.protocol import (
 from mind.agent.trace import AgentTrace, format_traced_response
 from mind.core.config import Config
 from mind.core.llm import complete
-from mind.tools import run_tool
+from mind.tools import ToolSpec, run_tool
 
 
 MAX_AGENT_STEPS = 5
@@ -31,6 +32,7 @@ def run_agent(
     max_steps: int = MAX_AGENT_STEPS,
     trace: bool = False,
     prior_messages: list[dict[str, str]] | None = None,
+    confirm: Callable[[ToolSpec], bool] | None = None,
 ) -> str:
     """Run a bounded agent loop with optional prior conversation context."""
     messages: list[dict[str, str]] = [
@@ -63,7 +65,16 @@ def run_agent(
         return format_traced_response(answer, agent_trace)
 
     while tool_steps < max_steps:
-        raw_response = complete(config, messages)
+        try:
+            raw_response = complete(config, messages)
+        except Exception as error:
+            message = f"Error: Agent model call failed: {type(error).__name__}: {error}."
+
+            if agent_trace is not None:
+                agent_trace.record_error(step_number, message)
+
+            return finish(message)
+
         action = parse_agent_action(raw_response)
 
         if isinstance(action, InvalidAgentResponse):
@@ -106,7 +117,7 @@ def run_agent(
         if isinstance(action, ToolCall):
             tool_steps += 1
 
-            tool_result = run_tool(config, action.tool, action.args)
+            tool_result = run_tool(config, action.tool, action.args, confirm=confirm)
 
             if agent_trace is not None:
                 agent_trace.record_tool_call(
