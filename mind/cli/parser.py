@@ -7,6 +7,7 @@ from mind.cli.commands import (
     run_files_command,
     run_home_command,
     run_doctor_command,
+    run_inspect_command,
     run_remember_command,
     run_memories_command,
     run_forget_command,
@@ -30,6 +31,12 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
     subparsers.add_parser(
         "doctor",
         help="Check whether Mind's basic environment is working.",
+    )
+
+    # Add inspect command
+    subparsers.add_parser(
+        "inspect",
+        help="Show Mind's current configuration and runtime state."
     )
 
     # Add ask command
@@ -145,6 +152,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "doctor":
         return run_doctor_command(config)
+
+    if args.command == "inspect":
+        return run_inspect_command(config)
 
     if args.command == "ask":
         return run_ask_command(

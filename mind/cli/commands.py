@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import sys
+
 from mind import __version__
 from mind.core.config import Config
 from mind.memory import add_memory, list_memories, delete_memory
@@ -10,6 +12,45 @@ from mind.runtime.chat import run_chat
 from mind.agent import run_agent
 from mind.tools import TOOL_REGISTRY, ToolSpec
 from mind.runtime.confirmation import confirm_tool_run
+
+
+def _enabled(value: bool) -> str:
+    """Return a consistent human-readable enabled/disabled label."""
+    return "enabled" if value else "disabled"
+
+
+def _status(ok: bool) -> str:
+    """Return a consistent health-check status label."""
+    return "OK" if ok else "not OK"
+
+
+def _tool_permission_enabled(config: Config, permission: str) -> bool:
+    """Return whether a tool permission level is enabled by the current config."""
+    if permission == "read_only":
+        return True
+
+    if permission == "external_read":
+        return config.tools.allow_external_read
+
+    if permission == "local_write":
+        return config.tools.allow_local_write
+
+    if permission == "external_write":
+        return config.tools.allow_external_write
+
+    if permission == "dangerous":
+        return config.tools.allow_dangerous
+
+    return False
+
+
+def _available_agent_tools(config: Config) -> list[ToolSpec]:
+    """Return tools that are visible to the agent under the current config."""
+    return [
+        spec
+        for spec in TOOL_REGISTRY.values()
+        if spec.available_to_agent and _tool_permission_enabled(config, spec.permission)
+    ]
 
 
 def run_files_command(config: Config) -> int:
@@ -33,28 +74,195 @@ def run_home_command(config: Config) -> int:
     """Show the default landing output for the bare `mind` command."""
     ensure_workspace(config.paths.workspace)
 
-    print(config.assistant.name)
+    print(f"{config.assistant.name} v{__version__}")
     print(config.assistant.description)
     print()
-    print(f"Status: v{__version__} installed.")
+    print("Quick start:")
+    print('  mind ask "..."')
+    print("  mind chat")
+    print("  mind chat --tools")
+    print('  mind agent --trace "..."')
+    print("  mind files")
+    print("  mind memories")
+    print("  mind tools")
+    print("  mind doctor")
+    print()
+    print("Current config:")
+    print(f"  Model: {config.model.provider} / {config.model.default}")
+    print(f"  Workspace: {config.paths.workspace}")
+    print(f"  Database: {config.paths.database}")
+    print()
+    print("Run `mind doctor` to check setup.")
+    print("Run `mind inspect` to view detailed runtime state.")
 
     return 0
 
 
 def run_doctor_command(config: Config) -> int:
-    """Show basic setup checks without depending on future features."""
-    workspace = ensure_workspace(config.paths.workspace)
-    
-    ollama_ok = "Ollama: OK" if is_ollama_running(config) else "Ollama: not reachable"
+    """Check whether Mind's local runtime environment is usable."""
+    python_version = (
+        f"{sys.version_info.major}."
+        f"{sys.version_info.minor}."
+        f"{sys.version_info.micro}"
+    )
+
+    workspace_ok = True
+    database_ok = True
+    project_root_ok = config.project.root.exists() and config.project.root.is_dir()
+    ollama_ok = is_ollama_running(config)
+
+    try:
+        workspace = ensure_workspace(config.paths.workspace)
+    except OSError:
+        workspace_ok = False
+        workspace = config.paths.workspace
+
+    try:
+        config.paths.database.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        database_ok = False
+
+    healthy = all(
+        [
+            workspace_ok,
+            database_ok,
+            project_root_ok,
+            ollama_ok,
+        ]
+    )
 
     print("Mind doctor")
-    print("Python: OK")
-    print("Package: OK")
-    print("Config: OK")
-    print(ollama_ok)
-    print(f"Default model: {config.model.default}")
-    print(f"Workspace: OK ({workspace.resolve()})")
-    print(f"Database: OK ({config.paths.database.resolve()})")
+    print()
+    print(f"Package: OK — v{__version__}")
+    print(f"Python: OK — {python_version}")
+    print("Config: OK — configs/config.toml")
+    print(f"Ollama: {_status(ollama_ok)} — {config.model.base_url}")
+    print(f"Model: {config.model.default}")
+    print(f"Workspace: {_status(workspace_ok)} — {workspace.resolve()}")
+    print(f"Database: {_status(database_ok)} — {config.paths.database.resolve()}")
+    print(f"Project root: {_status(project_root_ok)} — {config.project.root.resolve()}")
+    print()
+    print("Tool safety:")
+    print(f"  external_read: {_enabled(config.tools.allow_external_read)}")
+    print(f"  local_write: {_enabled(config.tools.allow_local_write)}")
+    print(f"  external_write: {_enabled(config.tools.allow_external_write)}")
+    print(f"  dangerous: {_enabled(config.tools.allow_dangerous)}")
+    print(f"  confirmation: {_enabled(config.tools.require_confirmation)}")
+
+    warnings = []
+
+    if config.tools.allow_local_write:
+        warnings.append(
+            "local_write is enabled. Mind can modify workspace files after confirmation."
+        )
+
+    if config.tools.allow_external_write:
+        warnings.append(
+            "external_write is enabled. Mind may modify external services if such tools exist."
+        )
+
+    if config.tools.allow_dangerous:
+        warnings.append(
+            "dangerous tools are enabled. This is not recommended."
+        )
+
+    if not config.memory.auto_memory:
+        warnings.append(
+            "auto_memory is disabled. Mind will not extract memories during chat."
+        )
+
+    if warnings:
+        print()
+        print("Warnings:")
+        for warning in warnings:
+            print(f"  Warning: {warning}")
+
+    if not ollama_ok:
+        print()
+        print("Hint: Start Ollama, then run `mind doctor` again.")
+
+    if not project_root_ok:
+        print()
+        print("Hint: Check the [project] root setting in configs/config.toml.")
+
+    print()
+    print(f"Status: {'healthy' if healthy else 'needs attention'}")
+
+    return 0 if healthy else 1
+
+
+def run_inspect_command(config: Config) -> int:
+    """Print Mind's current configuration and runtime state without calling the model."""
+    memories = list_memories(config)
+    workspace_files = list_workspace_files(config)
+    available_tools = _available_agent_tools(config)
+
+    permission_counts: dict[str, int] = {
+        "read_only": 0,
+        "external_read": 0,
+        "local_write": 0,
+        "external_write": 0,
+        "dangerous": 0,
+    }
+
+    for spec in TOOL_REGISTRY.values():
+        permission_counts[spec.permission] += 1
+
+    python_version = (
+        f"{sys.version_info.major}."
+        f"{sys.version_info.minor}."
+        f"{sys.version_info.micro}"
+    )
+
+    print("Mind inspect")
+    print()
+    print("Version:")
+    print(f"  Mind: {__version__}")
+    print(f"  Python: {python_version}")
+    print()
+    print("Model:")
+    print(f"  Provider: {config.model.provider}")
+    print(f"  Base URL: {config.model.base_url}")
+    print(f"  Default model: {config.model.default}")
+    print()
+    print("Paths:")
+    print(f"  Workspace: {config.paths.workspace}")
+    print(f"  Database: {config.paths.database}")
+    print(f"  Project root: {config.project.root}")
+    print()
+    print("Memory:")
+    print(f"  Auto memory: {_enabled(config.memory.auto_memory)}")
+    print(f"  Max relevant memories: {config.memory.max_relevant_memories}")
+    print(f"  Stored memories: {len(memories)}")
+    print()
+    print("Context:")
+    print(f"  Max workspace chars: {config.context.max_workspace_chars}")
+    print(f"  Workspace files: {len(workspace_files)}")
+    print()
+    print("Tools:")
+    print(f"  Registered tools: {len(TOOL_REGISTRY)}")
+    print(f"  Available to agent: {len(available_tools)}")
+    print(f"  read_only tools: {permission_counts['read_only']}")
+    print(f"  external_read tools: {permission_counts['external_read']}")
+    print(f"  local_write tools: {permission_counts['local_write']}")
+    print(f"  external_write tools: {permission_counts['external_write']}")
+    print(f"  dangerous tools: {permission_counts['dangerous']}")
+    print()
+    print("Tool permissions:")
+    print("  read_only: enabled")
+    print(f"  external_read: {_enabled(config.tools.allow_external_read)}")
+    print(f"  local_write: {_enabled(config.tools.allow_local_write)}")
+    print(f"  external_write: {_enabled(config.tools.allow_external_write)}")
+    print(f"  dangerous: {_enabled(config.tools.allow_dangerous)}")
+    print(f"  confirmation: {_enabled(config.tools.require_confirmation)}")
+    print()
+
+    if available_tools:
+        print("Available agent tools:")
+        for spec in available_tools:
+            print(f"  {spec.name}")
+    else:
+        print("Available agent tools: none")
 
     return 0
 

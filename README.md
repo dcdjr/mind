@@ -14,6 +14,7 @@ Implemented:
 
 - `mind`
 - `mind doctor`
+- `mind inspect`
 - `mind ask <prompt>`
 - `mind ask <prompt> --files <workspace-relative-path> [more-files...]`
 - `mind ask --tools <prompt>`
@@ -176,6 +177,12 @@ Check basic environment status:
 
 ```bash
 mind doctor
+```
+
+Print Mind's config and runtime state without calling the model:
+
+```bash
+mind inspect
 ```
 
 Ask a one-shot question:
