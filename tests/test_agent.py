@@ -438,8 +438,6 @@ def test_run_agent_includes_prior_messages(monkeypatch, tmp_path: Path):
     }
 
 
-
-
 def test_run_agent_returns_model_call_errors(monkeypatch, tmp_path: Path):
     """Model call failures should become user-facing agent errors."""
     config = make_test_config(tmp_path)
@@ -453,3 +451,42 @@ def test_run_agent_returns_model_call_errors(monkeypatch, tmp_path: Path):
 
     assert "Agent model call failed" in result
     assert "ollama down" in result
+
+
+def test_run_agent_passes_confirmation_callback_to_tool(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """run_agent should pass the confirmation callback through to run_tool."""
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": "workspace.write_file", "args": {"path": "notes.txt", "content": "hello"}}',
+            '{"type": "final", "answer": "Done."}',
+        ]
+    )
+
+    def fake_complete(config, messages):
+        return next(responses)
+
+    seen_confirm = []
+
+    def fake_confirm(spec):
+        return True
+
+    def fake_run_tool(config, tool_name, args, confirm=None):
+        seen_confirm.append(confirm)
+        return ToolResult.success_result(tool_name, "Wrote workspace file: notes.txt")
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+    monkeypatch.setattr(agent, "run_tool", fake_run_tool)
+
+    result = agent.run_agent(
+        config,
+        "write a note",
+        confirm=fake_confirm,
+    )
+
+    assert result == "Done."
+    assert seen_confirm == [fake_confirm]
