@@ -174,7 +174,7 @@ or a final answer:
 {"type": "final", "answer": "Your answer here."}
 ```
 
-The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops. It supports one repair attempt for invalid agent JSON and can include prior chat messages when running in tool-enabled chat.
+The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops. It supports one repair attempt for invalid agent JSON and can include prior chat messages when running in tool-enabled chat. Trace output previews long tool results and invalid raw model responses so debugging output remains readable.
 
 ### `mind/tools/`
 

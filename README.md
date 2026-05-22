@@ -452,7 +452,7 @@ Action: tool_call
 Tool: workspace.list_files
 Args: {}
 Success: yes
-Result:
+Result preview:
 Workspace files:
 - notes.txt
 
@@ -461,7 +461,7 @@ Action: final
 Answer: Your workspace contains notes.txt.
 ```
 
-Trace mode is useful for debugging tool selection, permission failures, protocol failures, confirmations, and agent loops.
+Trace mode is useful for debugging tool selection, permission failures, protocol failures, confirmations, and agent loops. Long tool outputs and raw invalid model responses are shown as previews so terminal traces stay readable.
 
 ## Architecture
 

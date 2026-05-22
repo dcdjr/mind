@@ -52,7 +52,7 @@ class AgentTrace:
             f"Tool: {tool_name}",
             f"Args: {formatted_args}",
             f"Success: {'yes' if result.success else 'no'}",
-            "Result:",
+            "Result preview:",
             output_preview,
         ]
 

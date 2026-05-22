@@ -210,7 +210,8 @@ def test_run_agent_retries_once_after_invalid_json(monkeypatch, tmp_path: Path):
 
     assert result == "Recovered."
     assert len(captured_messages) == 2
-    assert "previous response did not follow" in captured_messages[1][-1]["content"]
+    assert "previous response was invalid" in captured_messages[1][-1]["content"]
+    assert "Continue the original user task" in captured_messages[1][-1]["content"]
     assert "Protocol error:" in captured_messages[1][-1]["content"]
 
 
@@ -347,6 +348,7 @@ def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
 def test_run_agent_trace_truncates_long_tool_output(monkeypatch, tmp_path: Path):
     """Trace mode should preview long tool outputs instead of dumping everything."""
     config = make_test_config(tmp_path)
+    long_output = "A" * 2_100 + "TAIL_SHOULD_NOT_APPEAR"
 
     responses = iter(
         [
@@ -366,7 +368,7 @@ def test_run_agent_trace_truncates_long_tool_output(monkeypatch, tmp_path: Path)
         "run_tool",
         lambda config, tool_name, args, confirm=None: ToolResult.success_result(
             tool_name,
-            "A" * 3_000,
+            long_output,
         ),
     )
 
@@ -374,6 +376,7 @@ def test_run_agent_trace_truncates_long_tool_output(monkeypatch, tmp_path: Path)
 
     assert "Result preview:" in result
     assert "[Trace output truncated:" in result
+    assert "TAIL_SHOULD_NOT_APPEAR" not in result
     assert "Final answer:" in result
     assert "Read the file." in result
 
@@ -398,7 +401,7 @@ def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
 
     assert "Agent trace:" in result
     assert result.count("Action: parse_failure") == 2
-    assert "Raw model response:" in result
+    assert "Raw model response preview:" in result
     assert "not json" in result
     assert "still not json" in result
     assert "Action: error" in result
