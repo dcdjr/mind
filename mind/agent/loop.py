@@ -19,10 +19,19 @@ from mind.tools import ToolSpec, run_tool
 MAX_AGENT_STEPS = 5
 
 PROTOCOL_REPAIR_MESSAGE = (
-    "Your previous response did not follow Mind's agent protocol. "
-    "Return strict JSON only. "
-    "Use either a tool call object or a final answer object. "
-    "Do not include markdown, explanation, or extra text."
+    "Your previous response was invalid for Mind's agent protocol.\n\n"
+    "Continue the original user task. Do not acknowledge this correction. "
+    "Do not explain the protocol. Do not apologize.\n\n"
+    "Return exactly one strict JSON object and nothing else.\n\n"
+    "If more information is needed, return a tool call object:\n"
+    '{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}\n\n'
+    "If the original task is complete, return a final answer object:\n"
+    '{"type": "final", "answer": "Your answer here."}\n\n'
+    "Important JSON rules:\n"
+    "- Do not include markdown outside the JSON object.\n"
+    "- Do not use raw multiline strings inside JSON.\n"
+    "- Escape newlines inside JSON strings as \\n.\n"
+    "- Use either a tool_call object or a final answer object."
 )
 
 
