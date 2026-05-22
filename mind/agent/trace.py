@@ -7,6 +7,29 @@ from typing import Any
 from mind.tools.result import ToolResult
 
 
+MAX_TRACE_OUTPUT_CHARS = 2_000
+
+
+def _preview_text(text: str, max_chars: int = MAX_TRACE_OUTPUT_CHARS) -> str:
+    """
+    Return a terminal-friendly preview of a long text block.
+
+    Tool outputs can be very large, especially when reading source files or
+    repository dumps. The agent may still receive the full tool output in its
+    model context, but the human trace should stay readable.
+    """
+    if len(text) <= max_chars:
+        return text
+
+    preview = text[:max_chars].rstrip()
+    omitted = len(text) - len(preview)
+
+    return (
+        f"{preview}\n"
+        f"[Trace output truncated: {omitted} characters omitted]"
+    )
+
+
 @dataclass
 class AgentTrace:
     """Collect human-readable trace entries for one agent run."""
@@ -21,6 +44,7 @@ class AgentTrace:
         result: ToolResult,
     ) -> None:
         formatted_args = json.dumps(args, sort_keys=True)
+        output_preview = _preview_text(result.output)
 
         lines = [
             f"Step {step_number}",
@@ -29,7 +53,7 @@ class AgentTrace:
             f"Args: {formatted_args}",
             f"Success: {'yes' if result.success else 'no'}",
             "Result:",
-            result.output,
+            output_preview,
         ]
 
         if result.error:
@@ -70,8 +94,8 @@ class AgentTrace:
                 [
                     f"Step {step_number}",
                     "Action: parse_failure",
-                    "Raw model response:",
-                    raw_response,
+                    "Raw model response preview:",
+                    _preview_text(raw_response),
                 ]
             )
         )

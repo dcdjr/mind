@@ -336,12 +336,46 @@ def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
     assert "Action: tool_call" in result
     assert "Tool: workspace.list_files" in result
     assert "Success: yes" in result
-    assert "Result:" in result
+    assert "Result preview:" in result
     assert "Workspace is empty." in result
     assert "Step 2" in result
     assert "Action: final" in result
     assert "Final answer:" in result
     assert "Your workspace is empty." in result
+
+
+def test_run_agent_trace_truncates_long_tool_output(monkeypatch, tmp_path: Path):
+    """Trace mode should preview long tool outputs instead of dumping everything."""
+    config = make_test_config(tmp_path)
+
+    responses = iter(
+        [
+            '{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "big.txt"}}',
+            '{"type": "final", "answer": "Read the file."}',
+        ]
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "complete",
+        lambda config, messages: next(responses),
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "run_tool",
+        lambda config, tool_name, args, confirm=None: ToolResult.success_result(
+            tool_name,
+            "A" * 3_000,
+        ),
+    )
+
+    result = agent.run_agent(config, "read big file", trace=True)
+
+    assert "Result preview:" in result
+    assert "[Trace output truncated:" in result
+    assert "Final answer:" in result
+    assert "Read the file." in result
 
 
 def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
