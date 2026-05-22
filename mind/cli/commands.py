@@ -44,6 +44,14 @@ def _tool_permission_enabled(config: Config, permission: str) -> bool:
     return False
 
 
+def _get_python_version() -> str:
+    return (
+        f"{sys.version_info.major}."
+        f"{sys.version_info.minor}."
+        f"{sys.version_info.micro}"
+    )
+
+
 def _available_agent_tools(config: Config) -> list[ToolSpec]:
     """Return tools that are visible to the agent under the current config."""
     return [
@@ -100,11 +108,7 @@ def run_home_command(config: Config) -> int:
 
 def run_doctor_command(config: Config) -> int:
     """Check whether Mind's local runtime environment is usable."""
-    python_version = (
-        f"{sys.version_info.major}."
-        f"{sys.version_info.minor}."
-        f"{sys.version_info.micro}"
-    )
+    python_version = _get_python_version()
 
     workspace_ok = True
     database_ok = True
@@ -208,11 +212,7 @@ def run_inspect_command(config: Config) -> int:
     for spec in TOOL_REGISTRY.values():
         permission_counts[spec.permission] += 1
 
-    python_version = (
-        f"{sys.version_info.major}."
-        f"{sys.version_info.minor}."
-        f"{sys.version_info.micro}"
-    )
+    python_version = _get_python_version()
 
     print("Mind inspect")
     print()
