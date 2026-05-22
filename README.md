@@ -109,7 +109,7 @@ database = "data/mind.db"
 [model]
 provider = "ollama"
 base_url = "http://localhost:11434"
-default = "gemma4:e2b"
+default = "gemma4:e4b"
 
 [memory]
 auto_memory = true
@@ -359,7 +359,9 @@ mind memories
 mind forget 1
 ```
 
-During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored in SQLite and can be injected into future prompts.
+Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
+
+During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts.
 
 Automatic memory extraction is controlled by:
 
@@ -555,6 +557,8 @@ The tests currently cover:
 - Ask runtime behavior
 - Chat loop behavior
 - Manual memory storage
+- Memory metadata storage
+- Memory deduplication
 - Memory deletion
 - Memory formatting
 - Automatic memory extraction parsing
@@ -588,7 +592,7 @@ Planned development stages:
 9. Safe local write and append tools
 10. Read-only codebase tools
 11. Project/devlog/status tools
-12. Memory review, deduplication, and schema improvements
+12. Memory review workflow and retrieval improvements
 13. Optional retrieval-augmented generation over local files and memories
 14. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
 
@@ -596,7 +600,7 @@ Near-term next steps:
 
 ```text
 1. Add project devlog/status tools.
-2. Improve memory schema and review workflow.
+2. Add memory review workflow.
 3. Add mission/run history.
 4. Add read-only Git/project status tools.
 ```

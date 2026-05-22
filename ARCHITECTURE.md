@@ -221,24 +221,30 @@ mind/memory/store.py      SQLite-backed memory storage
 mind/memory/extractor.py  model-output parsing for automatic memory extraction
 ```
 
-Current memory storage is simple:
+Current memory storage tracks text, normalized text for deduplication, review metadata, timestamps, and basic usage fields:
 
 ```text
 id
 text
+normalized_text
+kind
+source
+status
+confidence
 created_at
+updated_at
+last_used_at
+use_count
 ```
+
+Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 
 Future memory improvements may include:
 
 ```text
-kind
-source
-status
-updated_at
-deduplication
 review workflow
 semantic retrieval
+usage tracking updates
 ```
 
 ### `mind/workspace/`
@@ -330,8 +336,8 @@ Before high-impact integrations, the foundation should be strengthened in this o
 
 ```text
 1. project devlog/status tools
-2. memory schema improvements
-3. memory review and deduplication
+2. memory review workflow
+3. semantic memory retrieval
 4. mission/run history
 5. read-only Git/project status tools
 6. controlled test runner with explicit local-execute permission

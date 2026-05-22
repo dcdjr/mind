@@ -9,7 +9,7 @@ database = "data/mind.db"
 [model]
 provider = "ollama"
 base_url = "http://localhost:11434"
-default = "gemma4:e2b"
+default = "gemma4:e4b"
 
 [memory]
 auto_memory = true

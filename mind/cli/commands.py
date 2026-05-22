@@ -270,7 +270,10 @@ def run_inspect_command(config: Config) -> int:
 def run_remember_command(config: Config, text: str) -> int:
     """Adds a memory to Mind's memory database."""
     add_result = add_memory(config, text)
-    print("Memory saved.") if add_result else print("Memory already exists.")
+    if add_result:
+        print("Memory saved.")
+    else: 
+        print("Memory already exists.")
 
     return 0
    

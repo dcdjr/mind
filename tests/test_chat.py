@@ -149,8 +149,8 @@ def test_maybe_extract_and_store_memories_saves_extracted_memories(
         lambda config, user_input, response: ["User wants Mind to stay local-first."],
     )
 
-    def fake_add_memory(config, text):
-        stored.append(text)
+    def fake_add_memory(config, text, **kwargs):
+        stored.append((text, kwargs))
 
     monkeypatch.setattr(chat, "add_memory", fake_add_memory)
 
@@ -160,7 +160,17 @@ def test_maybe_extract_and_store_memories_saves_extracted_memories(
         "Got it.",
     )
 
-    assert stored == ["User wants Mind to stay local-first."]
+    assert stored == [
+        (
+            "User wants Mind to stay local-first.",
+            {
+                "kind": "general",
+                "source": "chat_auto",
+                "status": "auto_extracted",
+                "confidence": 0.6,
+            },
+        )
+    ]
 
 
 def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled(
