@@ -25,7 +25,14 @@ def maybe_extract_and_store_memories(
 
     for memory in memories:
         if not memory_exists(config, memory):
-            add_memory(config, memory)
+            add_memory(
+                config,
+                memory,
+                kind="general",
+                source="chat_auto",
+                status="auto_extracted",
+                confidence=0.6,
+            )
 
 
 def _strip_trace_for_history(response: str) -> str:
