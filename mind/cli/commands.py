@@ -9,9 +9,42 @@ from mind.workspace import ensure_workspace, list_workspace_files
 from mind.core.diagnostics import is_ollama_running
 from mind.runtime.ask import ask_once
 from mind.runtime.chat import run_chat
-from mind.agent import run_agent
 from mind.tools import TOOL_REGISTRY, ToolSpec
 from mind.runtime.confirmation import confirm_tool_run
+from mind.agent import (
+    list_agent_runs,
+    read_agent_run_metadata,
+    run_agent,
+    save_agent_run,
+)
+
+
+def _split_agent_response_for_persistence(
+    response: str,
+) -> tuple[str, str | None]:
+    """
+    Split a run_agent() response into final answer and optional trace output.
+
+    run_agent(trace=False) returns only the final answer.
+
+    run_agent(trace=True) returns:
+        Agent trace:
+        ...
+
+        Final answer:
+        ...
+
+    For persistence, we want final.md to contain only the final answer and
+    trace.md to contain only the trace/debug section.
+    """
+    marker = "\n\nFinal answer:\n"
+
+    if marker not in response:
+        return response, None
+
+    trace_output, final_answer = response.rsplit(marker, maxsplit=1)
+
+    return final_answer.strip(), trace_output.strip() + "\n"
 
 
 def _enabled(value: bool) -> str:
@@ -322,7 +355,20 @@ def run_ask_command(
             return 1
 
         response = run_agent(config, prompt, trace=trace, confirm=confirm_tool_run)
+        final_answer, trace_output = _split_agent_response_for_persistence(response)
+        
+        saved_run = save_agent_run(
+            config=config,
+            user_prompt=prompt,
+            final_answer=final_answer,
+            trace_output=trace_output,
+            status="completed",
+        )
+
         print(response)
+        print()
+        print(f"Saved agent run: {saved_run.run_id}")
+
         return 0
 
     if trace:
@@ -389,3 +435,73 @@ def run_tools_command() -> int:
     return 0
 
 
+def run_runs_command(config: Config) -> int:
+    """List saved agent runs, newest first."""
+    runs = list_agent_runs(config)
+
+    if not runs:
+        print("No agent runs saved.")
+        return 0
+
+    print("Saved agent runs:")
+    print()
+
+    for run_dir in runs:
+        metadata = read_agent_run_metadata(run_dir)
+
+        if metadata is None:
+            print(f"{run_dir.name} - metadata unavailable")
+            continue
+
+        status = metadata.get("status", "unknown")
+        model = metadata.get("model", "unknown")
+        provider = metadata.get("provider", "unknown")
+
+        print(f"{run_dir.name}")
+        print(f"  Status: {status}")
+        print(f"  Model: {provider} / {model}")
+        print()
+
+    return 0
+
+
+def run_run_show_command(config: Config, run_id: str) -> int:
+    """Show one saved agent run by ID."""
+    runs_root = config.paths.database.parent / "runs"
+    run_dir = runs_root / run_id
+
+    if not run_dir.exists() or not run_dir.is_dir():
+        print(f"No agent run found with ID {run_id}.")
+        return 0
+
+    metadata = read_agent_run_metadata(run_dir)
+    prompt_path = run_dir / "prompt.txt"
+    final_path = run_dir / "final.md"
+    trace_path = run_dir / "trace.md"
+
+    print(f"Agent run: {run_id}")
+    print()
+
+    if metadata is not None:
+        print("Metadata:")
+        print(f"  Status: {metadata.get('status', 'unknown')}")
+        print(f"  Model: {metadata.get('provider', 'unknown')} / {metadata.get('model', 'unknown')}")
+        print(f"  Started: {metadata.get('started_at', 'unknown')}")
+        print(f"  Finished: {metadata.get('finished_at', 'unknown')}")
+        print()
+
+    if prompt_path.exists():
+        print("Prompt:")
+        print(prompt_path.read_text(encoding="utf-8").strip())
+        print()
+
+    if final_path.exists():
+        print("Final answer:")
+        print(final_path.read_text(encoding="utf-8").strip())
+        print()
+
+    if trace_path.exists():
+        print("Trace:")
+        print(trace_path.read_text(encoding="utf-8").strip())
+
+    return 0

@@ -15,6 +15,8 @@ from mind.cli.commands import (
     run_chat_command,
     run_agent_command,
     run_tools_command,
+    run_runs_command,
+    run_run_show_command,
 )
 
 
@@ -141,6 +143,29 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="Show the agent's tool calls and intermediate steps.",
     )
 
+    # Add runs command
+    subparsers.add_parser(
+        "runs",
+        help="List saved agent runs.",
+    )
+
+    # Add run command
+    run_parser = subparsers.add_parser(
+    "run",
+    help="Inspect a saved agent run.",
+    )
+    run_subparsers = run_parser.add_subparsers(dest="run_command")
+
+    run_show_parser = run_subparsers.add_parser(
+        "show",
+        help="Show a saved agent run.",
+    )
+    run_show_parser.add_argument(
+        "run_id",
+        type=str,
+        help="The saved agent run ID.",
+    )
+
     return parser
 
 
@@ -185,6 +210,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "tools":
         return run_tools_command()
+
+    if args.command == "runs":
+        return run_runs_command(config)
+
+    if args.command == "run":
+        if args.run_command == "show":
+            return run_run_show_command(config, args.run_id)
+
+        parser.error("run requires a subcommand, such as `show`.")
     
     return run_home_command(config)
 
