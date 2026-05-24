@@ -10,6 +10,9 @@ database = "data/mind.db"
 provider = "ollama"
 base_url = "http://localhost:11434"
 default = "gemma4:e4b"
+cloud = "gpt-oss:120b-cloud"
+uncensored = "dolphin3:8b"
+small = "qwen2.5:1.5b"
 
 [memory]
 auto_memory = true

@@ -18,6 +18,7 @@ from mind.tools.workspace import (
     tool_workspace_read_file,
     tool_workspace_write_file,
 )
+from mind.tools.project import tool_project_status
 
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {
@@ -85,7 +86,24 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         function=tool_internet_github_zen,
         requires_confirmation=False,
     ),
+    "project.status": ToolSpec(
+        name="project.status",
+        description="List information about the current status of the Mind project.",
+        args_description="{}",
+        permission="read_only",
+        function=tool_project_status,
+        requires_confirmation=False,
+    )
 }
+
+
+def count_available_agent_tools(config: Config) -> int:
+    """Return the number of agent-visible tools allowed by the current config."""
+    return sum(
+        1
+        for spec in TOOL_REGISTRY.values()
+        if spec.available_to_agent and _tool_is_allowed_to_run(config, spec)
+    )
 
 
 def _tool_is_allowed_to_run(config: Config, spec: ToolSpec) -> bool:
