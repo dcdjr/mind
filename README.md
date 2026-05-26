@@ -534,7 +534,6 @@ Mind's current safety boundaries:
 - rejection of path traversal outside workspace/project root
 - rejection of symlink escapes
 - ignored runtime/build/cache paths for codebase tools
-- default-disabled local write permission
 - confirmation-required local write tools
 - overwrite protection for workspace writes
 - content size caps for workspace writes/appends

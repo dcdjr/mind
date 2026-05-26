@@ -201,6 +201,8 @@ memory.list
 codebase.list_files
 codebase.read_file
 internet.github_zen
+project.status
+project.devlog
 ```
 
 Tools follow a common function shape:

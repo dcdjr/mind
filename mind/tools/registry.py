@@ -95,12 +95,12 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         requires_confirmation=False,
     ),
     "project.devlog": ToolSpec(
-    name="project.devlog",
-    description="Append a dated project devlog entry to workspace/devlog.md.",
-    args_description='{"summary": "What changed today.", "next_steps": ["Next task."]}',
-    permission="local_write",
-    function=tool_project_devlog,
-    requires_confirmation=True,
+        name="project.devlog",
+        description="Append a dated project devlog entry to workspace/devlog.md.",
+        args_description='{"summary": "What changed today.", "next_steps": ["Next task."]}',
+        permission="local_write",
+        function=tool_project_devlog,
+        requires_confirmation=True,
     ),
 }
 
