@@ -335,13 +335,12 @@ Mind currently includes these safety boundaries:
 Before high-impact integrations, the foundation should be strengthened in this order:
 
 ```text
-1. project devlog/status tools
-2. memory review workflow
-3. semantic memory retrieval
-4. mission/run history
-5. read-only Git/project status tools
-6. controlled test runner with explicit local-execute permission
-7. model provider abstraction
+1. memory review workflow
+2. semantic memory retrieval
+3. mission/run history
+4. read-only Git/project status tools
+5. controlled test runner with explicit local-execute permission
+6. model provider abstraction
 ```
 
 ## Long-Term Direction
@@ -354,7 +353,7 @@ Possible future directions include:
 - semantic memory retrieval
 - local file RAG
 - persistent missions/checkpoints
-- project status generation
+- richer project status generation
 - GitHub tooling
 - email draft creation
 - calendar tools

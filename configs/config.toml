@@ -9,7 +9,7 @@ database = "data/mind.db"
 [model]
 provider = "ollama"
 base_url = "http://localhost:11434"
-default = "gemma4:e4b"
+default = "qwen3-coder:30b"
 cloud = "gpt-oss:120b-cloud"
 uncensored = "dolphin3:8b"
 small = "qwen2.5:1.5b"
@@ -26,7 +26,7 @@ root = "."
 
 [tools]
 allow_external_read = true
-allow_local_write = false
+allow_local_write = true
 allow_external_write = false
 allow_dangerous = false
 require_confirmation = true

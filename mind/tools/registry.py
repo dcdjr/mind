@@ -18,7 +18,7 @@ from mind.tools.workspace import (
     tool_workspace_read_file,
     tool_workspace_write_file,
 )
-from mind.tools.project import tool_project_status
+from mind.tools.project import tool_project_status, tool_project_devlog
 
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {
@@ -93,7 +93,15 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         permission="read_only",
         function=tool_project_status,
         requires_confirmation=False,
-    )
+    ),
+    "project.devlog": ToolSpec(
+    name="project.devlog",
+    description="Append a dated project devlog entry to workspace/devlog.md.",
+    args_description='{"summary": "What changed today.", "next_steps": ["Next task."]}',
+    permission="local_write",
+    function=tool_project_devlog,
+    requires_confirmation=True,
+    ),
 }
 
 

@@ -287,6 +287,12 @@ def test_format_available_tools_uses_tool_spec_metadata(tmp_path: Path):
     assert "internet.github_zen" in formatted_tools
     assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
 
+    assert "project.status" in formatted_tools
+    assert "List information about the current status of the Mind project." in formatted_tools
+
+    assert "project.devlog" in formatted_tools
+    assert "Append a dated project devlog entry to workspace/devlog.md." in formatted_tools
+
     assert "Permission:" in formatted_tools
     assert "Requires confirmation:" in formatted_tools
 
@@ -302,9 +308,11 @@ def test_format_available_tools_hides_disabled_local_write_tools(tmp_path: Path)
     assert "memory.list" in formatted_tools
     assert "codebase.list_files" in formatted_tools
     assert "codebase.read_file" in formatted_tools
+    assert "project.status" in formatted_tools
 
     assert "workspace.write_file" not in formatted_tools
     assert "workspace.append_file" not in formatted_tools
+    assert "project.devlog" not in formatted_tools
 
 
 def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_path: Path):
@@ -450,6 +458,7 @@ def test_existing_read_tools_do_not_require_confirmation():
     assert TOOL_REGISTRY["codebase.list_files"].requires_confirmation is False
     assert TOOL_REGISTRY["codebase.read_file"].requires_confirmation is False
     assert TOOL_REGISTRY["internet.github_zen"].requires_confirmation is False
+    assert TOOL_REGISTRY["project.status"].requires_confirmation is False
 
 
 def test_permission_denial_message_uses_actual_permission(monkeypatch, tmp_path: Path):
@@ -854,4 +863,179 @@ def test_workspace_append_file_tool_rejects_non_boolean_create(
     assert "Error:" in result.output
     assert "create" in result.output
 
+
+def test_project_status_tool_is_registered():
+    """The project status tool should be read-only and confirmation-free."""
+    spec = TOOL_REGISTRY["project.status"]
+
+    assert spec.name == "project.status"
+    assert spec.permission == "read_only"
+    assert spec.requires_confirmation is False
+
+
+def test_project_status_tool_reports_current_runtime_state(tmp_path: Path):
+    """project.status should return a deterministic summary of project state."""
+    config = make_test_config(tmp_path)
+    config.paths.workspace.mkdir(parents=True)
+    (config.paths.workspace / "notes.txt").write_text("hello", encoding="utf-8")
+    add_memory(config, "Mind should keep concise project status.")
+
+    result = run_tool(config, "project.status", {})
+
+    assert result.success is True
+    assert "PROJECT STATUS BEGIN" in result.output
+    assert "Configured provider/model: ollama / gemma4:e4b" in result.output
+    assert f"Workspace path: {config.paths.workspace}" in result.output
+    assert f"Database path: {config.paths.database}" in result.output
+    assert f"Project root: {config.project.root}" in result.output
+    assert "Workspace files: 1" in result.output
+    assert "Stored memories: 1" in result.output
+    assert f"Registered tools: {len(TOOL_REGISTRY)}" in result.output
+    assert "Available agent tools: 7" in result.output
+    assert "local_write: disabled" in result.output
+    assert "PROJECT STATUS END" in result.output
+
+
+def test_project_status_tool_runs_when_local_write_is_disabled(tmp_path: Path):
+    """project.status should remain available under read-only tool permissions."""
+    config = make_test_config(tmp_path)
+
+    result = run_tool(config, "project.status", {})
+
+    assert result.success is True
+    assert "PROJECT STATUS BEGIN" in result.output
+
+
+def test_project_devlog_tool_is_registered():
+    """The project devlog tool should be a confirmed local-write tool."""
+    spec = TOOL_REGISTRY["project.devlog"]
+
+    assert spec.name == "project.devlog"
+    assert spec.permission == "local_write"
+    assert spec.requires_confirmation is True
+
+
+def test_project_devlog_tool_is_blocked_when_local_write_disabled(tmp_path: Path):
+    """project.devlog should fail closed when local writes are disabled."""
+    config = make_test_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "project.devlog",
+        {
+            "summary": "Added project tools.",
+            "next_steps": ["Document them."],
+        },
+        confirm=lambda spec: True,
+    )
+
+    assert result.success is False
+    assert "local_write" in result.output
+    assert not (config.paths.workspace / "devlog.md").exists()
+
+
+def test_project_devlog_tool_requires_confirmation_handler(tmp_path: Path):
+    """project.devlog should not run without explicit confirmation."""
+    config = make_local_write_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "project.devlog",
+        {
+            "summary": "Added project tools.",
+        },
+    )
+
+    assert result.success is False
+    assert "requires confirmation" in result.output
+    assert not (config.paths.workspace / "devlog.md").exists()
+
+
+def test_project_devlog_tool_appends_dated_entry_when_confirmed(tmp_path: Path):
+    """project.devlog should append a Markdown entry to workspace/devlog.md."""
+    config = make_local_write_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "project.devlog",
+        {
+            "summary": "  Added project status and devlog tools.  ",
+            "next_steps": [" Add docs. ", "", "Add tests."],
+        },
+        confirm=lambda spec: True,
+    )
+
+    target = config.paths.workspace / "devlog.md"
+    content = target.read_text(encoding="utf-8")
+
+    assert result.success is True
+    assert result.output == "Appended project devlog entry to workspace/devlog.md."
+    assert content.startswith("## ")
+    assert "Added project status and devlog tools." in content
+    assert "Next steps:" in content
+    assert "- Add docs." in content
+    assert "- Add tests." in content
+    assert "- " not in content.replace("- Add docs.", "").replace("- Add tests.", "")
+
+
+def test_project_devlog_tool_appends_to_existing_devlog(tmp_path: Path):
+    """project.devlog should preserve previous devlog entries."""
+    config = make_local_write_config(tmp_path)
+    target = config.paths.workspace / "devlog.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("existing entry\n", encoding="utf-8")
+
+    result = run_tool(
+        config,
+        "project.devlog",
+        {
+            "summary": "Added another entry.",
+        },
+        confirm=lambda spec: True,
+    )
+
+    content = target.read_text(encoding="utf-8")
+
+    assert result.success is True
+    assert content.startswith("existing entry\n")
+    assert "Added another entry." in content
+
+
+def test_project_devlog_tool_rejects_missing_summary(tmp_path: Path):
+    """project.devlog should require a non-empty summary string."""
+    config = make_local_write_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "project.devlog",
+        {
+            "next_steps": ["Add summary."],
+        },
+        confirm=lambda spec: True,
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "summary" in result.output
+    assert not (config.paths.workspace / "devlog.md").exists()
+
+
+def test_project_devlog_tool_rejects_non_string_next_steps(tmp_path: Path):
+    """project.devlog should require next_steps to be a list of strings."""
+    config = make_local_write_config(tmp_path)
+
+    result = run_tool(
+        config,
+        "project.devlog",
+        {
+            "summary": "Added project tools.",
+            "next_steps": ["Document them.", 123],
+        },
+        confirm=lambda spec: True,
+    )
+
+    assert result.success is True
+    assert "Error:" in result.output
+    assert "next_steps" in result.output
+    assert not (config.paths.workspace / "devlog.md").exists()
 

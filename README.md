@@ -54,8 +54,9 @@ Implemented:
 - Interactive confirmation callback for confirmed tools
 - Workspace, codebase, memory, and internet tool modules
 - Read-only external API tool example
+- Project status and devlog tools
 - Agent trace/debug output
-- Unit tests for CLI routing, context building, memory, workspace access, codebase access, prompt construction, agent behavior, tool execution, and tool permissions
+- Unit tests for CLI routing, context building, memory, workspace access, codebase access, prompt construction, agent behavior, project tools, tool execution, and tool permissions
 
 ## Requirements
 
@@ -109,7 +110,10 @@ database = "data/mind.db"
 [model]
 provider = "ollama"
 base_url = "http://localhost:11434"
-default = "gemma4:e4b"
+default = "qwen3-coder:30b"
+cloud = "gpt-oss:120b-cloud"
+uncensored = "dolphin3:8b"
+small = "qwen2.5:1.5b"
 
 [memory]
 auto_memory = true
@@ -123,7 +127,7 @@ root = "."
 
 [tools]
 allow_external_read = true
-allow_local_write = false
+allow_local_write = true
 allow_external_write = false
 allow_dangerous = false
 require_confirmation = true
@@ -146,7 +150,7 @@ Current default policy:
 ```text
 read_only        allowed
 external_read    allowed
-local_write      disabled
+local_write      allowed, with confirmation for confirmed tools
 external_write   disabled
 dangerous        disabled
 ```
@@ -158,7 +162,7 @@ The `[tools]` config section controls which classes of tools are allowed:
 ```toml
 [tools]
 allow_external_read = true
-allow_local_write = false
+allow_local_write = true
 allow_external_write = false
 allow_dangerous = false
 require_confirmation = true
@@ -166,7 +170,7 @@ require_confirmation = true
 
 For example, `internet.github_zen` is an `external_read` tool. If `allow_external_read = false`, Mind blocks that tool and returns a failed `ToolResult` instead of making the external request.
 
-`workspace.write_file` and `workspace.append_file` are `local_write` tools. They exist, but they are disabled by the default config. When local writes are enabled, they still require confirmation when `require_confirmation = true`.
+`workspace.write_file`, `workspace.append_file`, and `project.devlog` are `local_write` tools. In the default config they are allowed, but they still require confirmation when `require_confirmation = true`.
 
 ## Usage
 
@@ -420,7 +424,13 @@ memory.list
 codebase.list_files
 codebase.read_file
 internet.github_zen
+project.status
+project.devlog
 ```
+
+`project.status` returns a read-only project summary, including version, configured model, workspace/database/project paths, workspace file count, memory count, tool counts, and configured tool safety flags.
+
+`project.devlog` appends a dated Markdown entry to `workspace/devlog.md`. It takes a required `summary` string and an optional `next_steps` list of strings, uses the same controlled workspace append boundary as `workspace.append_file`, and requires local-write permission plus confirmation.
 
 The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, whether it needs confirmation, and how it runs.
 
@@ -599,16 +609,19 @@ Planned development stages:
 10. Read-only codebase tools
 11. Project/devlog/status tools
 12. Memory review workflow and retrieval improvements
-13. Optional retrieval-augmented generation over local files and memories
-14. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
+13. Mission/run history
+14. Read-only Git/project status tools
+15. Optional retrieval-augmented generation over local files and memories
+16. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
 
 Near-term next steps:
 
 ```text
-1. Add project devlog/status tools.
-2. Add memory review workflow.
+1. Add memory review workflow.
+2. Add semantic memory retrieval.
 3. Add mission/run history.
 4. Add read-only Git/project status tools.
+5. Add a controlled test-runner tool with explicit local-execute permission.
 ```
 
 ## Design Goals

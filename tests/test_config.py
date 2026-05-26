@@ -12,11 +12,11 @@ def test_load_config_reads_basic_settings():
     assert config.paths.database == Path("data/mind.db")
     assert config.project.root == Path(".")
     assert config.model.provider == "ollama"
-    assert config.model.default == "gemma4:e4b"
+    assert config.model.default == "qwen3-coder:30b"
     assert config.memory.auto_memory is True
     assert config.context.max_workspace_chars == 12000
     assert config.tools.allow_external_read is True
-    assert config.tools.allow_local_write is False
+    assert config.tools.allow_local_write is True
     assert config.tools.allow_external_write is False
     assert config.tools.allow_dangerous is False
     assert config.tools.require_confirmation is True
