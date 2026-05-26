@@ -132,16 +132,16 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         type=str,
         help="The one-shot tool-enabled prompt to run.",
     )
+    agent_parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="Show the agent's tool calls and intermediate steps.",
+    )
 
     # Add tools command
     subparsers.add_parser(
         "tools",
         help="List tools currently available to Mind."
-    )
-    agent_parser.add_argument(
-        "--trace",
-        action="store_true",
-        help="Show the agent's tool calls and intermediate steps.",
     )
 
     # Add runs command
@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_agent_command(config, args.prompt, args.trace)
 
     if args.command == "tools":
-        return run_tools_command()
+        return run_tools_command(config)
 
     if args.command == "runs":
         return run_runs_command(config)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from mind.core.config import Config
@@ -13,9 +13,10 @@ DEVLOG_PATH = Path("devlog.md")
 def build_devlog_entry(
     summary: str,
     next_steps: list[str] | None = None,
+    today: date | None = None,
 ) -> str:
     """Build one Markdown devlog entry."""
-    today = datetime.now().astimezone().date().isoformat()
+    today = today or datetime.now().astimezone().date()
     clean_summary = summary.strip()
 
     lines = [

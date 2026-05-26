@@ -36,6 +36,9 @@ def tool_workspace_read_file(config: Config, args: dict[str, Any]) -> str:
 
     content = read_workspace_file(config, Path(path))
 
+    if content.startswith("Error:"):
+        return content
+
     return f"FILE: {path}\n---\n{content}"
 
 

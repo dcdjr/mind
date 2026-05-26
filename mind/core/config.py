@@ -97,9 +97,9 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
             provider=raw["model"]["provider"],
             base_url=raw["model"]["base_url"],
             default=raw["model"]["default"],
-            cloud=raw["model"]["cloud"],
-            uncensored=raw["model"]["uncensored"],
-            small=raw["model"]["small"],
+            cloud=raw["model"].get("cloud", ""),
+            uncensored=raw["model"].get("uncensored", ""),
+            small=raw["model"].get("small", ""),
         ),
         memory=MemoryConfig(
             auto_memory=raw["memory"]["auto_memory"],

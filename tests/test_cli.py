@@ -406,9 +406,10 @@ def test_mind_tools_routes_to_tools_command(monkeypatch, tmp_path: Path):
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_run_tools_command():
+    def fake_run_tools_command(config):
         nonlocal called
         called = True
+        assert config == test_config
         return 0
 
     monkeypatch.setattr(cli, "load_config", lambda: test_config)
@@ -527,5 +528,4 @@ def test_run_agent_command_delegates_to_tool_enabled_ask(monkeypatch, tmp_path: 
 
     assert exit_code == 0
     assert called is True
-
 

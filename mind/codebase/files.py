@@ -133,10 +133,7 @@ def list_codebase_files(config: Config) -> list[Path]:
 
         files.append(relative_path)
 
-        if len(files) >= MAX_CODEBASE_LIST_FILES:
-            break
-
-    return sorted(files)
+    return sorted(files)[:MAX_CODEBASE_LIST_FILES]
 
 
 def read_codebase_file(config: Config, relative_path: Path) -> str:

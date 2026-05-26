@@ -110,11 +110,11 @@ def count_available_agent_tools(config: Config) -> int:
     return sum(
         1
         for spec in TOOL_REGISTRY.values()
-        if spec.available_to_agent and _tool_is_allowed_to_run(config, spec)
+        if spec.available_to_agent and tool_is_allowed_to_run(config, spec)
     )
 
 
-def _tool_is_allowed_to_run(config: Config, spec: ToolSpec) -> bool:
+def tool_is_allowed_to_run(config: Config, spec: ToolSpec) -> bool:
     """Return whether a tool is allowed under the current config."""
     if spec.permission == "local_write" and not config.tools.allow_local_write:
         return False
@@ -147,7 +147,7 @@ def run_tool(
     safe_args = args or {}
     spec = TOOL_REGISTRY[tool_name]
 
-    if not _tool_is_allowed_to_run(config, spec):
+    if not tool_is_allowed_to_run(config, spec):
         return ToolResult.failure_result(
             tool_name=tool_name,
             error=(
@@ -174,21 +174,28 @@ def run_tool(
 
     try:
         output = spec.function(config, safe_args)
+
+        if not isinstance(output, str):
+            return ToolResult.failure_result(
+                tool_name=tool_name,
+                error=(
+                    f"Tool '{tool_name}' returned {type(output).__name__}, "
+                    "but Mind tools must return strings."
+                ),
+            )
+
+        if output.startswith("Error:"):
+            return ToolResult.failure_result(
+                tool_name=tool_name,
+                error=output,
+            )
+
     except Exception as error:
         return ToolResult.failure_result(
             tool_name=tool_name,
             error=f"Tool raised {type(error).__name__}: {error}.",
         )
-
-    if not isinstance(output, str):
-        return ToolResult.failure_result(
-            tool_name=tool_name,
-            error=(
-                f"Tool '{tool_name}' returned {type(output).__name__}, "
-                "but Mind tools must return strings."
-            ),
-        )
-
+    
     return ToolResult.success_result(
         tool_name=tool_name,
         output=output,
@@ -203,7 +210,7 @@ def format_available_tools(config: Config) -> str:
         if not spec.available_to_agent:
             continue
 
-        if not _tool_is_allowed_to_run(config, spec):
+        if not tool_is_allowed_to_run(config, spec):
             continue
 
         confirmation = "yes" if spec.requires_confirmation else "no"

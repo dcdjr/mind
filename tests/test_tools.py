@@ -128,7 +128,7 @@ def test_workspace_read_file_tool_rejects_escape_path(tmp_path: Path):
     result = run_tool(config, "workspace.read_file", {"path": "../secret.txt"})
 
     assert isinstance(result, ToolResult)
-    assert result.success is True
+    assert result.success is False
     assert "Access denied" in result.output
     assert "secretsauce" not in result.output
 
@@ -630,7 +630,7 @@ def test_workspace_write_file_tool_rejects_missing_path(
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "path" in result.output
 
@@ -654,7 +654,7 @@ def test_workspace_write_file_tool_rejects_non_string_content(
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "content" in result.output
 
@@ -679,7 +679,7 @@ def test_workspace_write_file_tool_rejects_non_boolean_overwrite(
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "overwrite" in result.output
 
@@ -810,7 +810,7 @@ def test_workspace_append_file_tool_rejects_missing_path(
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "path" in result.output
 
@@ -834,7 +834,7 @@ def test_workspace_append_file_tool_rejects_non_string_content(
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "content" in result.output
 
@@ -859,7 +859,7 @@ def test_workspace_append_file_tool_rejects_non_boolean_create(
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "create" in result.output
 
@@ -1014,7 +1014,7 @@ def test_project_devlog_tool_rejects_missing_summary(tmp_path: Path):
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "summary" in result.output
     assert not (config.paths.workspace / "devlog.md").exists()
@@ -1034,8 +1034,7 @@ def test_project_devlog_tool_rejects_non_string_next_steps(tmp_path: Path):
         confirm=lambda spec: True,
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Error:" in result.output
     assert "next_steps" in result.output
     assert not (config.paths.workspace / "devlog.md").exists()
-

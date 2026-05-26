@@ -10,7 +10,7 @@ MAX_WORKSPACE_WRITE_CHARS = 100_000
 
 def ensure_workspace(workspace: Path) -> Path:
     """Create Mind's controlled workspace if it does not already exist."""
-    workspace.mkdir(exist_ok=True)
+    workspace.mkdir(parents=True, exist_ok=True)
     return workspace
 
 

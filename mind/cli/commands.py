@@ -9,7 +9,7 @@ from mind.workspace import ensure_workspace, list_workspace_files
 from mind.core.diagnostics import is_ollama_running
 from mind.runtime.ask import ask_once
 from mind.runtime.chat import run_chat
-from mind.tools import TOOL_REGISTRY, ToolSpec
+from mind.tools import TOOL_REGISTRY, ToolSpec, tool_is_allowed_to_run
 from mind.runtime.confirmation import confirm_tool_run
 from mind.agent import (
     list_agent_runs,
@@ -408,9 +408,21 @@ def run_agent_command(config: Config, prompt: str, trace: bool = False) -> int:
     )
 
 
-def run_tools_command() -> int:
+def run_tools_command(config: Config) -> int:
     """List all tools currently available to Mind."""
     if not TOOL_REGISTRY:
+        print("There are no available tools for Mind.")
+        return 0
+
+    allowed_tools = []
+
+    for _, spec in TOOL_REGISTRY.items():
+        if spec.available_to_agent and tool_is_allowed_to_run(config, spec):
+            allowed_tools.append(spec)
+        else:
+            continue
+
+    if not allowed_tools:
         print("There are no available tools for Mind.")
         return 0
 
@@ -428,9 +440,8 @@ def run_tools_command() -> int:
         )
         print()
     
-    for _, spec in TOOL_REGISTRY.items():
-        if spec.available_to_agent:
-            print_tool(spec)         
+    for spec in allowed_tools:
+        print_tool(spec)
 
     return 0
 
