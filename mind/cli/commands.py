@@ -505,3 +505,15 @@ def run_run_show_command(config: Config, run_id: str) -> int:
         print(trace_path.read_text(encoding="utf-8").strip())
 
     return 0
+
+
+def run_uncensored_command(config: Config, user_prompt: str) -> int:
+    response = ask_once(
+        config,
+        user_prompt,
+        model=config.model.uncensored,
+    )
+
+    print(response)
+
+    return 0

@@ -29,6 +29,7 @@ def ask(
     prompt: str,
     workspace_context: str | None = None,
     memory_context: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Send a single prompt to the configured model.
@@ -36,6 +37,9 @@ def ask(
     Prompts with local context stay on the default model for now.
     """
     messages = build_messages(config, prompt, workspace_context, memory_context)
+
+    if model:
+        return complete(config, messages, model=model)
 
     has_private_context = workspace_context is not None or memory_context is not None
 

@@ -266,6 +266,12 @@ List available tools:
 mind tools
 ```
 
+Mind can run an explicitly configured alternate model:
+
+```bash
+mind uncensored "prompt"
+```
+
 ## Workspace
 
 Mind reads, writes, and appends files only inside the configured workspace directory:

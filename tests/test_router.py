@@ -59,12 +59,6 @@ def test_resolve_model_returns_cloud_model(tmp_path: Path):
     assert router.resolve_model(config, "cloud") == "gpt-oss:120b-cloud"
 
 
-def test_resolve_model_returns_uncensored_model(tmp_path: Path):
-    config = make_test_config(tmp_path)
-
-    assert router.resolve_model(config, "uncensored") == "dolphin3:8b"
-
-
 def test_resolve_model_falls_back_to_default_for_unknown_label(tmp_path: Path):
     config = make_test_config(tmp_path)
 

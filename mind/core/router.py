@@ -6,7 +6,7 @@ from mind.core.config import Config
 from mind.core.json_utils import extract_json_object
 
 
-VALID_ROUTE_LABELS = {"default", "cloud", "uncensored"}
+VALID_ROUTE_LABELS = {"default", "cloud"}
 
 
 def complete_small(config: Config, messages: list[dict[str, str]]) -> str:
@@ -30,10 +30,7 @@ def build_router_system_prompt() -> str:
         1. "cloud": Use this if the prompt requires advanced reasoning, deep mathematical logic, 
            real-time search engine data, complex code debugging, or massive analytical processing.
            NEVER USE CLOUD IF THE PROMPT CONTAINS SENSITIVE OR PRIVATE DATA.
-        2. "uncensored": Use this if the prompt involves creative writing with dark/gritty themes, 
-           fictional violence, unconstrained roleplay, or sensitive/taboo philosophy that standard 
-           safety guardrails block.
-        3. "default": Use this for everything else, including general conversation, basic tasks, 
+        2. "default": Use this for everything else, including general conversation, basic tasks, 
            private data parsing, simple summaries, or routine scripts.
 
         JSON format output example: {"model": "default"}
@@ -61,9 +58,6 @@ def build_router_messages(user_prompt: str) -> list[dict[str, str]]:
 def resolve_model(config: Config, route_label: str) -> str:
     if route_label == "cloud" and config.model.cloud:
         return config.model.cloud
-
-    if route_label == "uncensored" and config.model.uncensored:
-        return config.model.uncensored
 
     return config.model.default
 

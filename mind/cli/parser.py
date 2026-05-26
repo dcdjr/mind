@@ -17,6 +17,7 @@ from mind.cli.commands import (
     run_tools_command,
     run_runs_command,
     run_run_show_command,
+    run_uncensored_command,
 )
 
 
@@ -151,8 +152,8 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
 
     # Add run command
     run_parser = subparsers.add_parser(
-    "run",
-    help="Inspect a saved agent run.",
+        "run",
+        help="Inspect a saved agent run.",
     )
     run_subparsers = run_parser.add_subparsers(dest="run_command")
 
@@ -164,6 +165,17 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         "run_id",
         type=str,
         help="The saved agent run ID.",
+    )
+
+    # Add uncensored command
+    uncensored_parser = subparsers.add_parser(
+        "uncensored",
+        help="Chat with Mind using an uncensored model as the inference engine.",
+    )
+    uncensored_parser.add_argument(
+        "prompt",
+        type=str,
+        help="This is the prompt to give Mind's uncensored model.",
     )
 
     return parser
@@ -219,6 +231,9 @@ def main(argv: list[str] | None = None) -> int:
             return run_run_show_command(config, args.run_id)
 
         parser.error("run requires a subcommand, such as `show`.")
+
+    if args.command == "uncensored":
+        return run_uncensored_command(config, args.prompt)
     
     return run_home_command(config)
 

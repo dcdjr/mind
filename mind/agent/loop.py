@@ -16,7 +16,7 @@ from mind.core.llm import complete
 from mind.tools import ToolSpec, run_tool
 
 
-MAX_AGENT_STEPS = 5
+MAX_AGENT_STEPS = 10
 
 PROTOCOL_REPAIR_MESSAGE = (
     "Your previous response was invalid for Mind's agent protocol.\n\n"
