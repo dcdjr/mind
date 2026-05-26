@@ -200,8 +200,9 @@ def test_codebase_read_file_tool_rejects_escape_path(tmp_path: Path):
         },
     )
 
-    assert result.success is True
+    assert result.success is False
     assert "Access denied" in result.output
+    assert "FILE:" not in result.output
     assert "supersecret" not in result.output
 
 

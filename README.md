@@ -310,7 +310,6 @@ workspace.append_file
 Safety behavior:
 
 ```text
-- local writes are disabled by default
 - write/append tools require confirmation when confirmation is enabled
 - write refuses to overwrite existing files unless overwrite=true
 - append can create missing files only when create=true
