@@ -6,6 +6,7 @@ from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,
+    EmbeddingConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -31,6 +32,11 @@ def make_test_config(tmp_path: Path) -> Config:
         memory=MemoryConfig(
             auto_memory=True,
             max_relevant_memories=8,
+        ),
+        embeddings=EmbeddingConfig(
+            provider="ollama",
+            model="nomic-embed-text",
+            enabled=True,
         ),
         context=ContextConfig(
             max_workspace_chars=12000,

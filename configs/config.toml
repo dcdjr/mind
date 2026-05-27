@@ -18,6 +18,11 @@ small = "qwen2.5:1.5b"
 auto_memory = true
 max_relevant_memories = 8
 
+[embeddings]
+provider = "ollama"
+model = "nomic-embed-text"
+enabled = true
+
 [context]
 max_workspace_chars = 12000
 

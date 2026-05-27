@@ -5,6 +5,7 @@ from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,
+    EmbeddingConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -31,6 +32,11 @@ def make_test_config(tmp_path: Path) -> Config:
         memory=MemoryConfig(
             auto_memory=True,
             max_relevant_memories=8,
+        ),
+        embeddings=EmbeddingConfig(
+            provider="ollama",
+            model="nomic-embed-text",
+            enabled=True,
         ),
         context=ContextConfig(
             max_workspace_chars=12000,
@@ -188,6 +194,7 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
             auto_memory=False,
             max_relevant_memories=8,
         ),
+        embeddings=base_config.embeddings,
         context=base_config.context,
         tools=base_config.tools,
         project=base_config.project,

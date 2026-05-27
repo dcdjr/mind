@@ -14,6 +14,9 @@ def test_load_config_reads_basic_settings():
     assert config.model.provider == "ollama"
     assert config.model.default == "qwen3-coder:30b"
     assert config.memory.auto_memory is True
+    assert config.embeddings.provider == "ollama"
+    assert config.embeddings.model == "nomic-embed-text"
+    assert config.embeddings.enabled is True
     assert config.context.max_workspace_chars == 12000
     assert config.tools.allow_external_read is True
     assert config.tools.allow_local_write is True

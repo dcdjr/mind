@@ -5,6 +5,7 @@ from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,
+    EmbeddingConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -29,6 +30,11 @@ def make_test_config(tmp_path: Path) -> Config:
         memory=MemoryConfig(
             auto_memory=True,
             max_relevant_memories=8,
+        ),
+        embeddings=EmbeddingConfig(
+            provider="ollama",
+            model="nomic-embed-text",
+            enabled=True,
         ),
         context=ContextConfig(
             max_workspace_chars=12000,
@@ -55,6 +61,7 @@ def test_build_context_includes_most_recent_memories(monkeypatch, tmp_path: Path
             auto_memory=True,
             max_relevant_memories=2,
         ),
+        embeddings=base_config.embeddings,
         context=base_config.context,
         tools=base_config.tools,
     )
@@ -92,6 +99,7 @@ def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
             auto_memory=False,
             max_relevant_memories=8,
         ),
+        embeddings=base_config.embeddings,
         context=base_config.context,
         tools=base_config.tools,
     )
@@ -156,6 +164,7 @@ def test_build_workspace_context_truncates_when_context_is_too_large(tmp_path: P
         paths=base_config.paths,
         model=base_config.model,
         memory=base_config.memory,
+        embeddings=base_config.embeddings,
         context=ContextConfig(
             max_workspace_chars=50,
         ),

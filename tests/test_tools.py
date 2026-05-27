@@ -4,6 +4,7 @@ from mind.core.config import (
     AssistantConfig,
     Config,
     ContextConfig,
+    EmbeddingConfig,
     MemoryConfig,
     ModelConfig,
     PathConfig,
@@ -39,6 +40,11 @@ def make_test_config(tmp_path: Path) -> Config:
             auto_memory=True,
             max_relevant_memories=8,
         ),
+        embeddings=EmbeddingConfig(
+            provider="ollama",
+            model="nomic-embed-text",
+            enabled=True,
+        ),
         context=ContextConfig(
             max_workspace_chars=12000,
         ),
@@ -64,6 +70,7 @@ def make_local_write_config(tmp_path: Path) -> Config:
         paths=base_config.paths,
         model=base_config.model,
         memory=base_config.memory,
+        embeddings=base_config.embeddings,
         context=base_config.context,
         tools=ToolConfig(
             allow_external_read=True,
@@ -325,6 +332,7 @@ def test_read_only_tools_run_even_when_restricted_permissions_are_disabled(tmp_p
         paths=base_config.paths,
         model=base_config.model,
         memory=base_config.memory,
+        embeddings=base_config.embeddings,
         context=base_config.context,
         tools=ToolConfig(
             allow_external_read=False,
@@ -352,6 +360,7 @@ def test_external_read_tool_is_blocked_when_external_read_is_disabled(tmp_path: 
         paths=base_config.paths,
         model=base_config.model,
         memory=base_config.memory,
+        embeddings=base_config.embeddings,
         context=base_config.context,
         tools=ToolConfig(
             allow_external_read=False,
