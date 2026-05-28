@@ -119,6 +119,11 @@ small = "qwen2.5:1.5b"
 auto_memory = true
 max_relevant_memories = 8
 
+[embeddings]
+provider = "ollama"
+model = "nomic-embed-text"
+enabled = true
+
 [context]
 max_workspace_chars = 12000
 
@@ -368,7 +373,7 @@ mind memories
 mind forget 1
 ```
 
-Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
+Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
 
 During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts.
 
@@ -380,7 +385,16 @@ auto_memory = true
 max_relevant_memories = 8
 ```
 
-This feature is experimental. It currently uses simple recent-memory retrieval, not semantic search or embeddings.
+Semantic embedding generation is configured separately:
+
+```toml
+[embeddings]
+provider = "ollama"
+model = "nomic-embed-text"
+enabled = true
+```
+
+The embedding helper currently supports Ollama and returns one numeric vector for each input text. It validates empty input, disabled embeddings, unsupported providers, provider failures, and malformed embedding responses before semantic retrieval consumes the vector.
 
 ## Agent and Tools
 
@@ -495,6 +509,7 @@ Core infrastructure
   - context
   - prompts
   - diagnostics
+  - embeddings
   - LLM client
 ↓
 Agent loop
@@ -515,7 +530,7 @@ Current package responsibilities:
 ```text
 mind/cli/        CLI parser and command handlers
 mind/runtime/    ask/chat runtime flows and interactive confirmation
-mind/core/       config, context, prompts, diagnostics, and LLM client
+mind/core/       config, context, prompts, diagnostics, embeddings, and LLM client
 mind/agent/      bounded agent loop, protocol parsing, trace output, and agent prompts
 mind/tools/      tool registry, tool specs, tool results, permission checks, and tool implementations
 mind/memory/     SQLite memory store and memory extraction
@@ -575,7 +590,9 @@ The tests currently cover:
 - Memory deduplication
 - Memory deletion
 - Memory formatting
+- Memory embedding storage and lookup
 - Automatic memory extraction parsing
+- Embedding generation and provider response validation
 - Workspace file listing
 - Safe workspace file reading, writing, and appending
 - Codebase file listing and reading

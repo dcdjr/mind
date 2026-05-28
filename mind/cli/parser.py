@@ -30,19 +30,16 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command")
 
-    # Add doctor command
     subparsers.add_parser(
         "doctor",
         help="Check whether Mind's basic environment is working.",
     )
 
-    # Add inspect command
     subparsers.add_parser(
         "inspect",
         help="Show Mind's current configuration and runtime state."
     )
 
-    # Add ask command
     ask_parser = subparsers.add_parser(
         "ask",
         help="Give Mind a single prompt.",
@@ -72,13 +69,11 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="Show tool calls and intermediate steps when --tools is enabled.",
     )
 
-    # Add files command
     subparsers.add_parser(
         "files",
         help="List all files in Mind's workspace.",
     )
 
-    # Add chat command
     chat_parser = subparsers.add_parser(
         "chat",
         help="Start an interactive Mind chat session.",
@@ -94,7 +89,6 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="Show tool calls and intermediate steps when --tools is enabled.",
     )
 
-    # Add remember command
     remember_parser = subparsers.add_parser(
         "remember",
         help="Store a memory.",
@@ -105,13 +99,11 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The memory text to store.",
     )
 
-    # Add memories command
     subparsers.add_parser(
         "memories",
         help="List stored memories.",
     )
 
-    # Add forget command
     forget_parser = subparsers.add_parser(
         "forget",
         help="Delete a saved memory by ID.",
@@ -122,7 +114,6 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The ID of the memory to delete.",
     )
 
-    # Add agent command
     agent_parser = subparsers.add_parser(
         "agent",
         help="Alias for `mind ask --tools`.",
@@ -138,19 +129,16 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="Show the agent's tool calls and intermediate steps.",
     )
 
-    # Add tools command
     subparsers.add_parser(
         "tools",
         help="List tools currently available to Mind."
     )
 
-    # Add runs command
     subparsers.add_parser(
         "runs",
         help="List saved agent runs.",
     )
 
-    # Add run command
     run_parser = subparsers.add_parser(
         "run",
         help="Inspect a saved agent run.",
@@ -167,7 +155,6 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The saved agent run ID.",
     )
 
-    # Add uncensored command
     uncensored_parser = subparsers.add_parser(
         "uncensored",
         help="Chat with Mind using an uncensored model as the inference engine.",
@@ -210,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "remember":
         return run_remember_command(config, args.text)
-    
+
     if args.command == "memories":
         return run_memories_command(config)
 
@@ -234,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "uncensored":
         return run_uncensored_command(config, args.prompt)
-    
+
     return run_home_command(config)
 
 

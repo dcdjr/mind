@@ -42,6 +42,8 @@ def _split_agent_response_for_persistence(
     if marker not in response:
         return response, None
 
+    # Use rsplit so a final answer can mention the marker text without breaking
+    # the trace/final split created by format_traced_response().
     trace_output, final_answer = response.rsplit(marker, maxsplit=1)
 
     return final_answer.strip(), trace_output.strip() + "\n"
@@ -305,11 +307,11 @@ def run_remember_command(config: Config, text: str) -> int:
     add_result = add_memory(config, text)
     if add_result:
         print("Memory saved.")
-    else: 
+    else:
         print("Memory already exists.")
 
     return 0
-   
+
 
 def run_memories_command(config: Config) -> int:
     """Lists all memories currently stored in Mind's memory database."""
@@ -356,7 +358,7 @@ def run_ask_command(
 
         response = run_agent(config, prompt, trace=trace, confirm=confirm_tool_run)
         final_answer, trace_output = _split_agent_response_for_persistence(response)
-        
+
         saved_run = save_agent_run(
             config=config,
             user_prompt=prompt,
@@ -439,7 +441,7 @@ def run_tools_command(config: Config) -> int:
             f"{'yes' if spec.requires_confirmation else 'no'}"
         )
         print()
-    
+
     for spec in allowed_tools:
         print_tool(spec)
 

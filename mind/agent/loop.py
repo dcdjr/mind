@@ -63,6 +63,8 @@ def run_agent(
 
     agent_trace = AgentTrace() if trace else None
 
+    # repair_attempted is separate from tool_steps because a protocol repair is
+    # a formatting retry, not a meaningful agent action toward the task.
     repair_attempted = False
     tool_steps = 0
     step_number = 1
@@ -93,6 +95,8 @@ def run_agent(
             if not repair_attempted:
                 repair_attempted = True
 
+                # Keep the bad assistant message in history so the model can
+                # repair exactly the response that failed validation.
                 messages.append(
                     {
                         "role": "assistant",
@@ -126,6 +130,8 @@ def run_agent(
         if isinstance(action, ToolCall):
             tool_steps += 1
 
+            # run_tool is the permission/confirmation boundary. The agent loop
+            # never calls tool functions directly, even after protocol parsing.
             tool_result = run_tool(config, action.tool, action.args, confirm=confirm)
 
             if agent_trace is not None:
@@ -136,6 +142,8 @@ def run_agent(
                     tool_result,
                 )
 
+            # Echo the validated tool call back as JSON so the transcript stays
+            # aligned with the protocol the model is expected to continue.
             messages.append(
                 {
                     "role": "assistant",
@@ -161,6 +169,9 @@ def run_agent(
                 }
             )
 
+            # step_number tracks every model-facing turn for trace readability;
+            # tool_steps tracks only tool calls so the max_steps guard limits
+            # actual side-effect opportunities.
             step_number += 1
             continue
 

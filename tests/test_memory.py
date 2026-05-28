@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from mind.core.config import (
     AssistantConfig,
     Config,
@@ -15,9 +17,13 @@ from mind.memory import (
     add_memory,
     delete_memory,
     format_memories_for_prompt,
+    get_memory_embedding,
     init_db,
+    list_memories_missing_embeddings,
+    list_memory_embeddings,
     list_memories,
     memory_exists,
+    store_memory_embedding,
 )
 
 
@@ -111,6 +117,26 @@ def test_init_db_creates_memory_metadata_columns(tmp_path: Path):
         "updated_at": "TEXT",
         "last_used_at": "TEXT",
         "use_count": "INTEGER",
+    }
+
+
+def test_init_db_creates_memory_embeddings_table(tmp_path: Path):
+    """init_db should create the semantic retrieval embedding table."""
+    config = make_test_config(tmp_path)
+
+    init_db(config)
+
+    with sqlite3.connect(config.paths.database) as conn:
+        columns = {
+            row[1]: row[2]
+            for row in conn.execute("PRAGMA table_info(memory_embeddings)").fetchall()
+        }
+
+    assert columns == {
+        "memory_id": "INTEGER",
+        "model": "TEXT",
+        "embedding_json": "TEXT",
+        "created_at": "TEXT",
     }
 
 
@@ -249,3 +275,103 @@ def test_add_memory_deduplicates_normalized_text(tmp_path: Path):
     assert second_added is False
     assert list_memories(config) == [(1, "The project is named Mind.")]
     assert memory_exists(config, "THE PROJECT IS NAMED MIND") is True
+
+
+def test_store_memory_embedding_round_trips_vector(tmp_path: Path):
+    """Stored memory embeddings should be read back as floats."""
+    config = make_test_config(tmp_path)
+    add_memory(config, "The project is named Mind.")
+
+    stored = store_memory_embedding(config, 1, "nomic-embed-text", [1, 2.5, 3])
+
+    assert stored is True
+    assert get_memory_embedding(config, 1, "nomic-embed-text") == [1.0, 2.5, 3.0]
+
+
+def test_store_memory_embedding_replaces_existing_model_vector(tmp_path: Path):
+    """Regenerating a vector for the same memory/model should replace the old one."""
+    config = make_test_config(tmp_path)
+    add_memory(config, "The project is named Mind.")
+
+    assert store_memory_embedding(config, 1, "nomic-embed-text", [1, 2]) is True
+    assert store_memory_embedding(config, 1, "nomic-embed-text", [3, 4]) is True
+
+    assert get_memory_embedding(config, 1, "nomic-embed-text") == [3.0, 4.0]
+
+
+def test_store_memory_embedding_returns_false_for_missing_memory(tmp_path: Path):
+    """Embeddings should not be stored without a source memory row."""
+    config = make_test_config(tmp_path)
+
+    stored = store_memory_embedding(config, 999, "nomic-embed-text", [1, 2])
+
+    assert stored is False
+    assert get_memory_embedding(config, 999, "nomic-embed-text") is None
+
+
+def test_store_memory_embedding_rejects_invalid_vectors(tmp_path: Path):
+    """Embedding storage should reject empty, boolean, and non-numeric vectors."""
+    config = make_test_config(tmp_path)
+    add_memory(config, "The project is named Mind.")
+
+    with pytest.raises(ValueError, match="Embedding cannot be empty"):
+        store_memory_embedding(config, 1, "nomic-embed-text", [])
+
+    with pytest.raises(ValueError, match="Embedding values must be numeric"):
+        store_memory_embedding(config, 1, "nomic-embed-text", [True])
+
+    with pytest.raises(ValueError, match="Embedding values must be numeric"):
+        store_memory_embedding(config, 1, "nomic-embed-text", ["bad"])
+
+
+def test_list_memory_embeddings_returns_active_memories_with_vectors(tmp_path: Path):
+    """Semantic retrieval should only list active memories with matching vectors."""
+    config = make_test_config(tmp_path)
+    add_memory(config, "Confirmed memory.")
+    add_memory(
+        config,
+        "Auto memory.",
+        source="chat_auto",
+        status="auto_extracted",
+        confidence=0.6,
+    )
+    add_memory(config, "Archived memory.", status="archived")
+    store_memory_embedding(config, 1, "nomic-embed-text", [1, 0])
+    store_memory_embedding(config, 2, "nomic-embed-text", [0, 1])
+    store_memory_embedding(config, 3, "nomic-embed-text", [9, 9])
+    store_memory_embedding(config, 1, "other-model", [5, 5])
+
+    embeddings = list_memory_embeddings(config, "nomic-embed-text")
+
+    assert embeddings == [
+        (1, "Confirmed memory.", [1.0, 0.0]),
+        (2, "Auto memory.", [0.0, 1.0]),
+    ]
+
+
+def test_list_memories_missing_embeddings_is_model_specific(tmp_path: Path):
+    """A memory embedded for one model can still be missing for another model."""
+    config = make_test_config(tmp_path)
+    add_memory(config, "Embedded memory.")
+    add_memory(config, "Missing memory.")
+    add_memory(config, "Archived memory.", status="archived")
+    store_memory_embedding(config, 1, "nomic-embed-text", [1, 0])
+
+    assert list_memories_missing_embeddings(config, "nomic-embed-text") == [
+        (2, "Missing memory.")
+    ]
+    assert list_memories_missing_embeddings(config, "other-model") == [
+        (1, "Embedded memory."),
+        (2, "Missing memory."),
+    ]
+
+
+def test_delete_memory_removes_stored_embeddings(tmp_path: Path):
+    """Deleting a memory should delete its derived embedding rows."""
+    config = make_test_config(tmp_path)
+    add_memory(config, "The project is named Mind.")
+    store_memory_embedding(config, 1, "nomic-embed-text", [1, 2])
+
+    assert delete_memory(config, 1) is True
+
+    assert get_memory_embedding(config, 1, "nomic-embed-text") is None

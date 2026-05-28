@@ -44,6 +44,8 @@ def ask(
     has_private_context = workspace_context is not None or memory_context is not None
 
     if has_private_context:
+        # Context may include local files or memories, so do not route it to an
+        # alternate/cloud model unless the caller explicitly selected one.
         return complete(config, messages, model=config.model.default)
 
     route_label = route(config, prompt)

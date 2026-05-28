@@ -88,6 +88,8 @@ def parse_extracted_memories(raw_output: str) -> list[str]:
             continue
 
         if len(memory) > MAX_MEMORY_LENGTH:
+            # Keep auto-extracted memories prompt-sized and reviewable; the raw
+            # chat transcript remains the source of truth for long details.
             memory = memory[:MAX_MEMORY_LENGTH].rstrip()
 
         memories.append(memory)

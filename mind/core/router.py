@@ -27,10 +27,10 @@ def build_router_system_prompt() -> str:
         You are a high-speed, accurate incoming request router for an LLM gateway.
         Analyze the user's prompt and categorize it into exactly one of three destinations:
 
-        1. "cloud": Use this if the prompt requires advanced reasoning, deep mathematical logic, 
+        1. "cloud": Use this if the prompt requires advanced reasoning, deep mathematical logic,
            real-time search engine data, complex code debugging, or massive analytical processing.
            NEVER USE CLOUD IF THE PROMPT CONTAINS SENSITIVE OR PRIVATE DATA.
-        2. "default": Use this for everything else, including general conversation, basic tasks, 
+        2. "default": Use this for everything else, including general conversation, basic tasks,
            private data parsing, simple summaries, or routine scripts.
 
         JSON format output example: {"model": "default"}
@@ -68,6 +68,8 @@ def route(config: Config, user_prompt: str) -> str:
         messages = build_router_messages(user_prompt)
         raw_response = complete_small(config, messages)
     except Exception:
+        # Routing is an optimization. If the router is unavailable or confused,
+        # stay on the default local model instead of failing the user request.
         return "default"
 
     parsed = extract_json_object(raw_response)

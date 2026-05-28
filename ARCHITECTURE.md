@@ -145,11 +145,12 @@ The core package owns shared infrastructure used by the rest of the system.
 mind/core/config.py       TOML config loading and typed config dataclasses
 mind/core/context.py      memory/workspace context assembly
 mind/core/diagnostics.py  environment checks
+mind/core/embeddings.py   embedding generation through the configured provider
 mind/core/llm.py          Ollama client calls
 mind/core/prompt.py       base system prompt and message construction
 ```
 
-`Config` currently includes assistant, path, model, memory, context, project, and tool-permission settings.
+`Config` currently includes assistant, path, model, memory, embedding, context, project, and tool-permission settings.
 
 ### `mind/agent/`
 
@@ -239,13 +240,15 @@ last_used_at
 use_count
 ```
 
+Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so a future backfill can run one embedding model at a time.
+
 Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 
 Future memory improvements may include:
 
 ```text
 review workflow
-semantic retrieval
+semantic retrieval over generated embeddings
 usage tracking updates
 ```
 

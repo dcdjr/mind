@@ -36,6 +36,8 @@ def _resolve_workspace_target(
     workspace = ensure_workspace(config.paths.workspace).resolve()
     target = (workspace / relative_path).resolve()
 
+    # resolve() follows symlinks, so this catches both "../" traversal and
+    # symlink escapes before any filesystem mutation happens.
     if not target.is_relative_to(workspace):
         return (
             None,
@@ -49,9 +51,6 @@ def list_workspace_files(config: Config) -> list[Path]:
     """Return all files inside the workspace as workspace-relative paths."""
     workspace = ensure_workspace(config.paths.workspace)
 
-    # rglob("*") walks recursively.
-    # Filtering with is_file() avoids returning directories.
-    # sorted() keeps CLI/test output deterministic.
     files = sorted(
         file.relative_to(workspace)
         for file in workspace.rglob("*")
@@ -111,6 +110,8 @@ def write_workspace_file(
 
     raw_target = config.paths.workspace / relative_path
 
+    # The resolved target may point inside the workspace; this separate raw-path
+    # check prevents replacing the destination of a workspace symlink.
     if raw_target.is_symlink():
         return f"Error: Refusing to write through symlink '{relative_path}'."
 
@@ -166,6 +167,8 @@ def append_workspace_file(
 
     raw_target = config.paths.workspace / relative_path
 
+    # Appending through a symlink is blocked for the same reason as writing:
+    # the visible workspace path should be the actual file being changed.
     if raw_target.is_symlink():
         return f"Error: Refusing to append through symlink '{relative_path}'."
 

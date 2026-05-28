@@ -9,7 +9,7 @@ from mind.project.devlog import append_project_devlog
 
 def tool_project_status(config: Config, args: dict[str, Any]) -> str:
     """Return a project status summary."""
-    
+
 
     from mind.tools.registry import TOOL_REGISTRY, count_available_agent_tools
 

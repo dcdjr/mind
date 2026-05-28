@@ -20,7 +20,7 @@ class AgentRunPaths:
     Keeping these paths grouped makes it easier for the CLI to print or inspect
     saved run artifacts later.
     """
-    
+
     run_id: str
     directory: Path
     metadata: Path

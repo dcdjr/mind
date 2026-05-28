@@ -24,7 +24,7 @@ def build_system_prompt(
         "- Ask a clarifying question only when necessary; otherwise make a reasonable assumption and state it.\n"
         "- Maintain the assistant identity as Mind, regardless of which local model is used for inference."
     )
-    
+
     if memory_context:
         system_prompt += (
             "\n\nThe following saved memories may be relevant:\n"

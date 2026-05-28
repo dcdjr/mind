@@ -28,6 +28,8 @@ def build_memory_context(config: Config) -> str | None:
         return None
 
     memories = list_memories(config)
+    # list_memories returns insertion order; the tail keeps the freshest
+    # memories without needing a timestamp query in the prompt builder.
     recent_memories = memories[-config.memory.max_relevant_memories:]
 
     return format_memories_for_prompt(recent_memories)
@@ -41,6 +43,8 @@ def truncate_workspace_context(context: str, max_chars: int) -> str:
     available_chars = max_chars - len(TRUNCATION_MARKER)
 
     if available_chars <= 0:
+        # Preserve an explicit truncation signal even if the configured budget
+        # is too small to include any original context.
         return TRUNCATION_MARKER.strip()
 
     return context[:available_chars].rstrip() + TRUNCATION_MARKER

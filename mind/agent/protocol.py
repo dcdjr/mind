@@ -9,7 +9,7 @@ from mind.core.json_utils import extract_json_object
 @dataclass(frozen=True)
 class ToolCall:
     """A validated request from the model to run one tool."""
-    
+
     tool: str
     args: dict[str, Any]
 
@@ -17,7 +17,7 @@ class ToolCall:
 @dataclass(frozen=True)
 class FinalAnswer:
     """A validated final answer from the model."""
-    
+
     answer: str
 
 

@@ -185,6 +185,8 @@ def run_tool(
             )
 
         if output.startswith("Error:"):
+            # Tool implementations return user-facing strings; this prefix is
+            # the lightweight convention that marks the string as a failure.
             return ToolResult.failure_result(
                 tool_name=tool_name,
                 error=output,
@@ -195,7 +197,7 @@ def run_tool(
             tool_name=tool_name,
             error=f"Tool raised {type(error).__name__}: {error}.",
         )
-    
+
     return ToolResult.success_result(
         tool_name=tool_name,
         output=output,

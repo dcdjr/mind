@@ -21,6 +21,8 @@ def maybe_extract_and_store_memories(
     try:
         memories = extract_memories(config, user_input, response)
     except Exception:
+        # Memory extraction is best-effort; chat should continue even if the
+        # extractor model is unavailable or returns something unexpected.
         return
 
     for memory in memories:
@@ -140,5 +142,4 @@ def run_chat(
         print()
 
         maybe_extract_and_store_memories(config, user_input, response)
-
 

@@ -98,6 +98,8 @@ def _resolve_codebase_target(
     root = _project_root(config)
     target = (root / relative_path).resolve()
 
+    # resolve() follows symlinks, so this protects read-only inspection from
+    # reaching files outside the configured project root.
     if not target.is_relative_to(root):
         return (
             None,
@@ -120,11 +122,15 @@ def list_codebase_files(config: Config) -> list[Path]:
         try:
             relative_path = file.relative_to(root)
         except ValueError:
+            # Defensive only: rglob() should stay below root, but symlink-heavy
+            # trees can make path assumptions less obvious.
             continue
 
         if _is_ignored_path(relative_path):
             continue
 
+        # Listing skips symlinks entirely so a later read cannot be suggested
+        # for a path that would be rejected by read_codebase_file().
         if file.is_symlink():
             continue
 
@@ -160,6 +166,8 @@ def read_codebase_file(config: Config, relative_path: Path) -> str:
         return f"Error reading file: {error}"
 
     if b"\x00" in raw_bytes[:4096]:
+        # NUL bytes are a cheap binary-file signal; avoid injecting binary data
+        # into prompts even if the extension was not in the ignore list.
         return f"Error: '{relative_path}' appears to be a binary file."
 
     try:

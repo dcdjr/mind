@@ -14,6 +14,8 @@ def extract_json_object(raw_output: str) -> dict[str, Any] | None:
     json_text = raw_output[start : end + 1]
 
     try:
+        # The model sometimes wraps JSON in prose. The first-open/last-close
+        # slice is intentionally permissive, and validation happens afterward.
         parsed = json.loads(json_text)
     except json.JSONDecodeError:
         return None

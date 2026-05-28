@@ -15,7 +15,7 @@ def ask_once(
 ) -> str:
     """Run one prompt through Mind with optional workspace and memory context."""
     context = build_context(config, file_paths)
-    
+
     return ask(
         config,
         prompt,
