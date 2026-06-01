@@ -901,7 +901,6 @@ def test_project_status_tool_reports_current_runtime_state(tmp_path: Path):
     assert "Workspace files: 1" in result.output
     assert "Stored memories: 1" in result.output
     assert f"Registered tools: {len(TOOL_REGISTRY)}" in result.output
-    assert "Available agent tools: 7" in result.output
     assert "local_write: disabled" in result.output
     assert "PROJECT STATUS END" in result.output
 

@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mind.core.config import Config
-from mind.memory import format_memories_for_prompt, list_memories
+from mind.memory import (
+    format_memories_for_prompt,
+    list_memories,
+    retrieve_relevant_memories,
+)
 from mind.workspace import read_workspace_file
 
 

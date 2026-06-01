@@ -373,7 +373,7 @@ mind memories
 mind forget 1
 ```
 
-Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
+Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
 
 During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts.
 
@@ -591,6 +591,7 @@ The tests currently cover:
 - Memory deletion
 - Memory formatting
 - Memory embedding storage and lookup
+- Memory semantic retrieval ranking
 - Automatic memory extraction parsing
 - Embedding generation and provider response validation
 - Workspace file listing
@@ -633,7 +634,7 @@ Near-term next steps:
 
 ```text
 1. Add memory review workflow.
-2. Add semantic memory retrieval.
+2. Wire semantic memory retrieval into context building and add embedding backfill.
 3. Add mission/run history.
 4. Add read-only Git/project status tools.
 5. Add a controlled test-runner tool with explicit local-execute permission.

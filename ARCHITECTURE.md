@@ -222,6 +222,7 @@ The memory package owns persistent memory and memory extraction.
 ```text
 mind/memory/store.py      SQLite-backed memory storage
 mind/memory/extractor.py  model-output parsing for automatic memory extraction
+mind/memory/retrieval.py  cosine-similarity ranking over stored memory embeddings
 ```
 
 Current memory storage tracks text, normalized text for deduplication, review metadata, timestamps, and basic usage fields:
@@ -240,7 +241,7 @@ last_used_at
 use_count
 ```
 
-Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so a future backfill can run one embedding model at a time.
+Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so a future backfill can run one embedding model at a time. Retrieval embeds the query with the same configured model and ranks stored vectors with cosine similarity.
 
 Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 
@@ -340,7 +341,7 @@ Before high-impact integrations, the foundation should be strengthened in this o
 
 ```text
 1. memory review workflow
-2. semantic memory retrieval
+2. context integration and backfill for semantic memory retrieval
 3. mission/run history
 4. read-only Git/project status tools
 5. controlled test runner with explicit local-execute permission
@@ -354,7 +355,7 @@ Mind is intended to grow into a local-first assistant runtime.
 Possible future directions include:
 
 ```text
-- semantic memory retrieval
+- retrieval-augmented memory and local file context
 - local file RAG
 - persistent missions/checkpoints
 - richer project status generation

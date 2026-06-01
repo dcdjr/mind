@@ -8,7 +8,10 @@ from mind.tools.codebase import (
     tool_codebase_list_files,
     tool_codebase_read_file,
 )
-from mind.tools.internet import tool_internet_github_zen
+from mind.tools.internet import (
+    tool_internet_github_zen,
+    world_omens
+)
 from mind.tools.memory import tool_memory_list
 from mind.tools.result import ToolResult
 from mind.tools.spec import ToolSpec
@@ -102,6 +105,13 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         function=tool_project_devlog,
         requires_confirmation=True,
     ),
+    "world.omens": ToolSpec(
+        name="world.omens",
+        description="Fetch a live Earth/space anomaly briefing from public APIs.",
+        args_description="{}",
+        permission="external_read",
+        function=world_omens,
+    )
 }
 
 

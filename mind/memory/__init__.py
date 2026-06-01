@@ -14,6 +14,11 @@ from mind.memory.extractor import (
     extract_memories,
     parse_extracted_memories,
 )
+from mind.memory.retrieval import (
+    cosine_similarity,
+    rank_memory_embeddings,
+    retrieve_relevant_memories,
+)
 
 __all__ = [
     "add_memory",
@@ -28,4 +33,7 @@ __all__ = [
     "store_memory_embedding",
     "extract_memories",
     "parse_extracted_memories",
+    "cosine_similarity",
+    "rank_memory_embeddings",
+    "retrieve_relevant_memories",
 ]
