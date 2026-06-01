@@ -5,6 +5,7 @@ import json
 import urllib.error
 import urllib.request
 from typing import Any
+from datetime import datetime, timezone
 
 from mind.core.config import Config
 
@@ -43,7 +44,7 @@ def tool_internet_github_zen(config: Config, args: dict[str, Any]) -> str:
     return f"GitHub Zen: {body}"
 
 
-def world_omens(max_items: int = 5) -> str:
+def tool_world_omens(config: Config, args: dict[str, Any]) -> str:
     """Return a live planetary anomaly briefing.
 
     This tool checks public, no-auth endpoints for:
@@ -57,6 +58,7 @@ def world_omens(max_items: int = 5) -> str:
     - no arbitrary URL input
     - no file writes
     """
+    max_items = args.get("max_items", 5)
 
     def fetch_json(url: str, timeout: int = 8):
         """Fetch JSON from a fixed trusted endpoint."""
