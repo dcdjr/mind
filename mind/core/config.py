@@ -38,7 +38,8 @@ class ModelConfig:
 
 @dataclass(frozen=True)
 class MemoryConfig:
-    auto_memory: bool
+    auto_extract: bool
+    inject_context: bool
     max_relevant_memories: int
 
 
@@ -110,7 +111,11 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
             small=raw["model"].get("small", ""),
         ),
         memory=MemoryConfig(
-            auto_memory=raw["memory"]["auto_memory"],
+            auto_extract=raw["memory"].get(
+                "auto_extract",
+                raw["memory"].get("auto_memory", True),
+            ),
+            inject_context=raw["memory"].get("inject_context", True),
             max_relevant_memories=raw["memory"]["max_relevant_memories"],
         ),
         embeddings=EmbeddingConfig(

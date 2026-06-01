@@ -28,7 +28,8 @@ def make_test_config(tmp_path: Path) -> Config:
             default="gemma4:e4b",
         ),
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=EmbeddingConfig(
@@ -58,7 +59,8 @@ def test_build_context_includes_most_recent_memories(monkeypatch, tmp_path: Path
         paths=base_config.paths,
         model=base_config.model,
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=2,
         ),
         embeddings=base_config.embeddings,
@@ -84,11 +86,67 @@ def test_build_context_includes_most_recent_memories(monkeypatch, tmp_path: Path
     assert "Recent memory two." in context.memory_context
 
 
-def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
+def test_build_context_uses_relevant_memories_when_query_is_available(
     monkeypatch,
     tmp_path: Path,
 ):
-    """Memory context should be None when automatic memory is disabled."""
+    """Memory context should prefer semantic retrieval for query-specific prompts."""
+    test_config = make_test_config(tmp_path)
+
+    list_called = False
+
+    def fake_list_memories(config):
+        nonlocal list_called
+        list_called = True
+        return [(1, "Recent fallback memory.")]
+
+    monkeypatch.setattr(context_builder, "list_memories", fake_list_memories)
+    monkeypatch.setattr(
+        context_builder,
+        "retrieve_relevant_memories",
+        lambda config, query, limit: [(2, f"Relevant to {query} with limit {limit}.")],
+    )
+
+    context = context_builder.build_context(test_config, query="planning")
+
+    assert context.memory_context is not None
+    assert "Relevant to planning with limit 8." in context.memory_context
+    assert "Recent fallback memory." not in context.memory_context
+    assert list_called is False
+
+
+def test_build_context_falls_back_to_recent_memories_when_retrieval_fails(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Memory context should still work if embedding retrieval is unavailable."""
+    test_config = make_test_config(tmp_path)
+
+    def broken_retrieve_relevant_memories(config, query, limit):
+        raise RuntimeError("embedding model unavailable")
+
+    monkeypatch.setattr(
+        context_builder,
+        "retrieve_relevant_memories",
+        broken_retrieve_relevant_memories,
+    )
+    monkeypatch.setattr(
+        context_builder,
+        "list_memories",
+        lambda config: [(1, "Recent fallback memory.")],
+    )
+
+    context = context_builder.build_context(test_config, query="planning")
+
+    assert context.memory_context is not None
+    assert "Recent fallback memory." in context.memory_context
+
+
+def test_build_context_returns_no_memory_context_when_injection_disabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Memory context should be None when memory injection is disabled."""
     base_config = make_test_config(tmp_path)
 
     test_config = Config(
@@ -96,7 +154,8 @@ def test_build_context_returns_no_memory_context_when_auto_memory_disabled(
         paths=base_config.paths,
         model=base_config.model,
         memory=MemoryConfig(
-            auto_memory=False,
+            auto_extract=True,
+            inject_context=False,
             max_relevant_memories=8,
         ),
         embeddings=base_config.embeddings,

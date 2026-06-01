@@ -12,8 +12,9 @@ def test_load_config_reads_basic_settings():
     assert config.paths.database == Path("data/mind.db")
     assert config.project.root == Path(".")
     assert config.model.provider == "ollama"
-    assert config.model.default == "qwen3-coder:30b"
-    assert config.memory.auto_memory is True
+    assert config.model.default == "gemma4:e2b"
+    assert config.memory.auto_extract is True
+    assert config.memory.inject_context is True
     assert config.embeddings.provider == "ollama"
     assert config.embeddings.model == "nomic-embed-text"
     assert config.embeddings.enabled is True

@@ -18,6 +18,7 @@ from mind.core.config import (
     PathConfig,
     ToolConfig,
 )
+from mind.core.context import ContextBundle
 from mind.tools import ToolResult
 
 
@@ -37,7 +38,8 @@ def make_test_config(tmp_path: Path) -> Config:
             default="gemma4:e4b",
         ),
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=EmbeddingConfig(
@@ -165,6 +167,32 @@ def test_run_agent_returns_final_answer(monkeypatch, tmp_path: Path):
     result = agent.run_agent(config, "hello")
 
     assert result == "Final answer."
+
+
+def test_run_agent_includes_relevant_memory_context(monkeypatch, tmp_path: Path):
+    """run_agent should include query-relevant saved memories in its system prompt."""
+    config = make_test_config(tmp_path)
+    captured_messages = []
+
+    def fake_build_context(config, file_paths=None, query=None):
+        assert query == "hello"
+        return ContextBundle(
+            memory_context="User is building Mind.",
+            workspace_context=None,
+        )
+
+    def fake_complete(config, messages):
+        captured_messages.extend(messages)
+        return '{"type": "final", "answer": "Final answer."}'
+
+    monkeypatch.setattr(agent, "build_context", fake_build_context)
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent(config, "hello")
+
+    assert result == "Final answer."
+    assert "Relevant saved memories:" in captured_messages[0]["content"]
+    assert "User is building Mind." in captured_messages[0]["content"]
 
 
 def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Path):

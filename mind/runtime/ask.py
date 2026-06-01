@@ -14,7 +14,7 @@ def ask_once(
     model: str | None = None,
 ) -> str:
     """Run one prompt through Mind with optional workspace and memory context."""
-    context = build_context(config, file_paths)
+    context = build_context(config, file_paths, query=prompt)
 
     return ask(
         config,

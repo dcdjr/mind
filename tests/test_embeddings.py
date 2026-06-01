@@ -52,7 +52,8 @@ def make_test_config(tmp_path: Path, embeddings: EmbeddingConfig | None = None) 
             default="gemma4:e4b",
         ),
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=embeddings

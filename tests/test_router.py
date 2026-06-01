@@ -32,7 +32,8 @@ def make_test_config(tmp_path: Path) -> Config:
             small="qwen2.5:1.5b",
         ),
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=EmbeddingConfig(

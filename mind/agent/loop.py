@@ -12,6 +12,7 @@ from mind.agent.protocol import (
 )
 from mind.agent.trace import AgentTrace, format_traced_response
 from mind.core.config import Config
+from mind.core.context import build_context
 from mind.core.llm import complete
 from mind.tools import ToolSpec, run_tool
 
@@ -44,10 +45,15 @@ def run_agent(
     confirm: Callable[[ToolSpec], bool] | None = None,
 ) -> str:
     """Run a bounded agent loop with optional prior conversation context."""
+    context = build_context(config, query=user_prompt)
+
     messages: list[dict[str, str]] = [
         {
             "role": "system",
-            "content": build_agent_system_prompt(config),
+            "content": build_agent_system_prompt(
+                config,
+                memory_context=context.memory_context,
+            ),
         },
     ]
 

@@ -30,7 +30,8 @@ def make_test_config(tmp_path: Path) -> Config:
             default="gemma4:e4b",
         ),
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=EmbeddingConfig(
@@ -55,9 +56,10 @@ def test_ask_once_builds_context_and_calls_llm(monkeypatch, tmp_path: Path):
     """ask_once should build context once and pass it to the LLM ask function."""
     test_config = make_test_config(tmp_path)
 
-    def fake_build_context(config, file_paths=None):
+    def fake_build_context(config, file_paths=None, query=None):
         assert config == test_config
         assert file_paths == [Path("notes.txt")]
+        assert query == "summarize"
 
         return ContextBundle(
             memory_context="Saved memory context.",
@@ -84,9 +86,10 @@ def test_ask_once_handles_no_file_paths(monkeypatch, tmp_path: Path):
     """ask_once should support prompts without explicit workspace files."""
     test_config = make_test_config(tmp_path)
 
-    def fake_build_context(config, file_paths=None):
+    def fake_build_context(config, file_paths=None, query=None):
         assert config == test_config
         assert file_paths is None
+        assert query == "hello"
 
         return ContextBundle(
             memory_context=None,

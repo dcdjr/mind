@@ -30,7 +30,8 @@ def make_test_config(tmp_path: Path) -> Config:
             default="gemma4:e4b",
         ),
         memory=MemoryConfig(
-            auto_memory=True,
+            auto_extract=True,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=EmbeddingConfig(
@@ -58,7 +59,7 @@ def test_run_chat_exits_on_quit(capsys, monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         chat,
         "build_context",
-        lambda config: ContextBundle(
+        lambda config, **kwargs: ContextBundle(
             memory_context=None,
             workspace_context=None,
         ),
@@ -93,7 +94,7 @@ def test_run_chat_sends_user_message_to_model_and_prints_response(
     monkeypatch.setattr(
         chat,
         "build_context",
-        lambda config: ContextBundle(
+        lambda config, **kwargs: ContextBundle(
             memory_context="Saved memory context.",
             workspace_context=None,
         ),
@@ -191,7 +192,8 @@ def test_maybe_extract_and_store_memories_does_nothing_when_auto_memory_disabled
         paths=base_config.paths,
         model=base_config.model,
         memory=MemoryConfig(
-            auto_memory=False,
+            auto_extract=False,
+            inject_context=True,
             max_relevant_memories=8,
         ),
         embeddings=base_config.embeddings,
@@ -255,7 +257,7 @@ def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: P
     monkeypatch.setattr(
         chat,
         "build_context",
-        lambda config: ContextBundle(
+        lambda config, **kwargs: ContextBundle(
             memory_context=None,
             workspace_context=None,
         ),
@@ -302,7 +304,7 @@ def test_run_chat_with_tools_preserves_agent_history(
     monkeypatch.setattr(
         chat,
         "build_context",
-        lambda config: ContextBundle(
+        lambda config, **kwargs: ContextBundle(
             memory_context=None,
             workspace_context=None,
         ),
@@ -367,7 +369,7 @@ def test_run_chat_without_tools_uses_normal_model_path(capsys, monkeypatch, tmp_
     monkeypatch.setattr(
         chat,
         "build_context",
-        lambda config: ContextBundle(
+        lambda config, **kwargs: ContextBundle(
             memory_context=None,
             workspace_context=None,
         ),

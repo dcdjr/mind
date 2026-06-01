@@ -4,9 +4,31 @@ from mind.agent import run_agent
 from mind.core.config import Config
 from mind.core.context import build_context
 from mind.core.llm import complete
-from mind.core.prompt import build_initial_chat_messages
+from mind.core.prompt import build_initial_chat_messages, build_system_prompt
 from mind.memory import add_memory, extract_memories, memory_exists
 from mind.runtime.confirmation import confirm_tool_run
+
+
+def _refresh_chat_system_message(
+    config: Config,
+    messages: list[dict[str, str]],
+    user_input: str,
+) -> None:
+    """
+    Refresh the first system message with memory context relevant to this turn.
+
+    Chat history stays intact, but the memory block changes based on the latest
+    user input instead of being frozen when the chat session starts.
+    """
+    context = build_context(config, query=user_input)
+
+    messages[0] = {
+        "role": "system",
+        "content": build_system_prompt(
+            config,
+            memory_context=context.memory_context,
+        ),
+    }
 
 
 def maybe_extract_and_store_memories(
@@ -15,7 +37,7 @@ def maybe_extract_and_store_memories(
     response: str,
 ) -> None:
     """Extract and save durable memories from one chat turn."""
-    if not config.memory.auto_memory:
+    if not config.memory.auto_extract:
         return
 
     try:
@@ -120,6 +142,8 @@ def run_chat(
 
             maybe_extract_and_store_memories(config, user_input, history_response)
             continue
+
+        _refresh_chat_system_message(config, messages, user_input)
 
         messages.append(
             {

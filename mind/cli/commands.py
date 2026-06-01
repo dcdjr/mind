@@ -205,9 +205,9 @@ def run_doctor_command(config: Config) -> int:
             "dangerous tools are enabled. This is not recommended."
         )
 
-    if not config.memory.auto_memory:
+    if not config.memory.auto_extract:
         warnings.append(
-            "auto_memory is disabled. Mind will not extract memories during chat."
+            "auto_extract is disabled. Mind will not extract memories during chat."
         )
 
     if warnings:
@@ -266,7 +266,8 @@ def run_inspect_command(config: Config) -> int:
     print(f"  Project root: {config.project.root}")
     print()
     print("Memory:")
-    print(f"  Auto memory: {_enabled(config.memory.auto_memory)}")
+    print(f"  Auto extraction: {_enabled(config.memory.auto_extract)}")
+    print(f"  Context injection: {_enabled(config.memory.inject_context)}")
     print(f"  Max relevant memories: {config.memory.max_relevant_memories}")
     print(f"  Stored memories: {len(memories)}")
     print()

@@ -15,7 +15,8 @@ uncensored = "dolphin3:8b"
 small = "qwen2.5:1.5b"
 
 [memory]
-auto_memory = true
+auto_extract = true
+inject_context = true
 max_relevant_memories = 8
 
 [embeddings]

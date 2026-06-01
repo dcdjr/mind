@@ -116,7 +116,8 @@ uncensored = "dolphin3:8b"
 small = "qwen2.5:1.5b"
 
 [memory]
-auto_memory = true
+auto_extract = true
+inject_context = true
 max_relevant_memories = 8
 
 [embeddings]
@@ -375,13 +376,14 @@ mind forget 1
 
 Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
 
-During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts.
+During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts when `inject_context` is enabled. Query-specific prompts prefer semantic retrieval when embeddings are enabled, and fall back to recent memories if retrieval is unavailable.
 
-Automatic memory extraction is controlled by:
+Automatic memory extraction and prompt injection are controlled separately by:
 
 ```toml
 [memory]
-auto_memory = true
+auto_extract = true
+inject_context = true
 max_relevant_memories = 8
 ```
 
@@ -617,6 +619,8 @@ Planned development stages:
 2. Safe workspace file access
 3. Centralized context construction
 4. Persistent memory
+   - Split automatic extraction from prompt context injection.
+   - Wire semantic memory retrieval into context building with recent-memory fallback.
 5. Bounded agent loop
 6. Tool registry and controlled tool execution
 7. Tool metadata and permission enforcement
@@ -634,7 +638,7 @@ Near-term next steps:
 
 ```text
 1. Add memory review workflow.
-2. Wire semantic memory retrieval into context building and add embedding backfill.
+2. Add embedding backfill.
 3. Add mission/run history.
 4. Add read-only Git/project status tools.
 5. Add a controlled test-runner tool with explicit local-execute permission.

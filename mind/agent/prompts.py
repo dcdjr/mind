@@ -4,9 +4,12 @@ from mind.core.config import Config
 from mind.tools import format_available_tools
 
 
-def build_agent_system_prompt(config: Config) -> str:
+def build_agent_system_prompt(
+    config: Config,
+    memory_context: str | None = None,
+) -> str:
     """Build the system prompt for Mind's tool-using agent mode."""
-    return (
+    prompt = (
         f"You are {config.assistant.name}, a local-first personal AI assistant "
         "running on the user's machine.\n\n"
         "You operate through a strict tool-use protocol. You may either call one "
@@ -43,3 +46,13 @@ def build_agent_system_prompt(config: Config) -> str:
         "- Expose only the requested final answer or the next tool call as strict JSON.\n"
         "- Be precise about what you know from tools versus what you are inferring."
     )
+
+    if memory_context:
+        prompt += (
+            "\n\nRelevant saved memories:\n"
+            "BEGIN SAVED MEMORIES\n"
+            f"{memory_context}\n"
+            "END SAVED MEMORIES"
+        )
+
+    return prompt
