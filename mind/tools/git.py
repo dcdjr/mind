@@ -6,6 +6,23 @@ from typing import Any
 from mind.core.config import Config
 
 
+MAX_GIT_STATUS_CHARS = 20_000
+GIT_STATUS_TRUNCATION_MARKER = "\n[Git status truncated]"
+
+
+def _truncate_git_status(output: str) -> str:
+    """Limit long Git status output while preserving a visible truncation marker."""
+    if len(output) <= MAX_GIT_STATUS_CHARS:
+        return output
+
+    available_chars = MAX_GIT_STATUS_CHARS - len(GIT_STATUS_TRUNCATION_MARKER)
+
+    if available_chars <= 0:
+        return GIT_STATUS_TRUNCATION_MARKER.strip()
+
+    return output[:available_chars].rstrip() + GIT_STATUS_TRUNCATION_MARKER
+
+
 def tool_git_status(config: Config, args: dict[str, Any]) -> str:
     """Show read-only Git status for the configured project root."""
     if args:
@@ -47,14 +64,18 @@ def tool_git_status(config: Config, args: dict[str, Any]) -> str:
     status_lines = git_status_result.stdout.strip().splitlines()
 
     if not status_lines:
-        return "Git status:\n\nWorking tree clean."
+        return _truncate_git_status("Git status:\n\nWorking tree clean.")
 
     branch_line = status_lines[0]
     change_lines = status_lines[1:]
 
     if not change_lines:
-        return f"Git status:\n\nBranch:\n{branch_line}\n\nChanges:\nWorking tree clean."
+        return _truncate_git_status(
+            f"Git status:\n\nBranch:\n{branch_line}\n\nChanges:\nWorking tree clean."
+        )
 
     changes = "\n".join(change_lines)
 
-    return f"Git status:\n\nBranch:\n{branch_line}\n\nChanges:\n{changes}"
+    return _truncate_git_status(
+        f"Git status:\n\nBranch:\n{branch_line}\n\nChanges:\n{changes}"
+    )

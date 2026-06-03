@@ -155,6 +155,28 @@ def test_git_status_formats_changed_work_tree(monkeypatch, tmp_path: Path):
     )
 
 
+def test_git_status_truncates_long_output(monkeypatch, tmp_path: Path):
+    """git.status should cap very long successful status output."""
+    config = make_test_config(tmp_path)
+    changed_files = "\n".join(f" M file-{index}.txt" for index in range(3_000))
+
+    def fake_run(args, cwd, capture_output, text, timeout):
+        if args == ["git", "rev-parse", "--is-inside-work-tree"]:
+            return completed_process(args, stdout="true\n")
+
+        if args == ["git", "status", "--short", "--branch"]:
+            return completed_process(args, stdout=f"## main\n{changed_files}\n")
+
+        raise AssertionError(f"Unexpected command: {args}")
+
+    monkeypatch.setattr(git_tools.subprocess, "run", fake_run)
+
+    result = tool_git_status(config, {})
+
+    assert len(result) <= git_tools.MAX_GIT_STATUS_CHARS
+    assert result.endswith(git_tools.GIT_STATUS_TRUNCATION_MARKER)
+
+
 def test_git_status_reports_status_command_failure(monkeypatch, tmp_path: Path):
     """git.status should report stderr from a failed status command."""
     config = make_test_config(tmp_path)

@@ -495,7 +495,7 @@ git.status
 
 `project.devlog` appends a dated Markdown entry to `workspace/devlog.md`. It takes a required `summary` string and an optional `next_steps` list of strings, uses the same controlled workspace append boundary as `workspace.append_file`, and requires local-write permission plus confirmation.
 
-`git.status` returns read-only `git status --short --branch` output for the configured project root. It accepts no arguments and does not expose arbitrary command execution.
+`git.status` returns read-only `git status --short --branch` output for the configured project root. It accepts no arguments, does not expose arbitrary command execution, and truncates very large status output to 20,000 characters.
 
 The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, whether it needs confirmation, and how it runs.
 
