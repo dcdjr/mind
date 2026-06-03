@@ -8,6 +8,7 @@ from mind.tools.codebase import (
     tool_codebase_list_files,
     tool_codebase_read_file,
 )
+from mind.tools.git import tool_git_status
 from mind.tools.internet import (
     tool_internet_github_zen,
     tool_world_omens,
@@ -111,6 +112,14 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         args_description='{"max_items": 5}',
         permission="external_read",
         function=tool_world_omens,
+        requires_confirmation=False,
+    ),
+    "git.status": ToolSpec(
+        name="git.status",
+        description="Get the current Git status of the project repository.",
+        args_description="{}",
+        permission="read_only",
+        function=tool_git_status,
         requires_confirmation=False,
     )
 }
