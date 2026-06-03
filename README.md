@@ -65,6 +65,7 @@ Implemented:
 - Workspace, codebase, memory, and internet tool modules
 - Read-only external API tool example
 - Project status and devlog tools
+- Read-only Git status tool
 - Agent trace/debug output
 - Unit tests for CLI routing, context building, memory, workspace access, codebase access, prompt construction, agent behavior, project tools, tool execution, and tool permissions
 
@@ -487,11 +488,14 @@ internet.github_zen
 world.omens
 project.status
 project.devlog
+git.status
 ```
 
 `project.status` returns a read-only project summary, including version, configured model, workspace/database/project paths, workspace file count, memory count, tool counts, and configured tool safety flags.
 
 `project.devlog` appends a dated Markdown entry to `workspace/devlog.md`. It takes a required `summary` string and an optional `next_steps` list of strings, uses the same controlled workspace append boundary as `workspace.append_file`, and requires local-write permission plus confirmation.
+
+`git.status` returns read-only `git status --short --branch` output for the configured project root. It accepts no arguments and does not expose arbitrary command execution.
 
 The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, whether it needs confirmation, and how it runs.
 
@@ -674,6 +678,7 @@ The tests currently cover:
 - Agent tool loop behavior
 - Agent trace output
 - Tool registry behavior
+- Read-only Git status tool behavior
 - Structured tool results
 - Tool permission enforcement
 - Tool confirmation behavior
@@ -698,7 +703,7 @@ Planned development stages:
 11. Project/devlog/status tools
 12. Memory review workflow and retrieval improvements
 13. Mission/run history
-14. Read-only Git/project status tools
+14. Controlled test-runner tool with explicit local-execute permission
 15. Optional retrieval-augmented generation over local files and memories
 16. Optional integrations for GitHub, email drafts, calendar, web search, project workflows, and automation
 
@@ -708,8 +713,8 @@ Near-term next steps:
 1. Wire semantic memory retrieval into context building.
 2. Add an archive command for reviewed memories.
 3. Add mission/run history.
-4. Add read-only Git/project status tools.
-5. Add a controlled test-runner tool with explicit local-execute permission.
+4. Add a controlled test-runner tool with explicit local-execute permission.
+5. Add model provider abstraction.
 ```
 
 ## Design Goals

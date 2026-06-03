@@ -28,7 +28,7 @@ from mind.tools.workspace import (
 TOOL_REGISTRY: dict[str, ToolSpec] = {
     "workspace.list_files": ToolSpec(
         name="workspace.list_files",
-        description="List files in the workspace.",
+        description="List files in Mind's controlled workspace directory.",
         args_description="{}",
         permission="read_only",
         function=tool_workspace_list_files,
@@ -36,31 +36,39 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
     "workspace.read_file": ToolSpec(
         name="workspace.read_file",
-        description="Read a workspace-relative file.",
-        args_description='{"path": "notes.txt"}',
+        description="Read one workspace-relative file from Mind's controlled workspace.",
+        args_description='{"path": "<workspace-relative-file-path>"}',
         permission="read_only",
         function=tool_workspace_read_file,
         requires_confirmation=False,
     ),
     "workspace.write_file": ToolSpec(
         name="workspace.write_file",
-        description="Write text to a workspace-relative file.",
-        args_description='{"path": "notes.txt", "content": "text", "overwrite": false}',
+        description="Write text to one workspace-relative file.",
+        args_description=(
+            '{"path": "<workspace-relative-file-path>", '
+            '"content": "<text-to-write>", '
+            '"overwrite": false}'
+        ),
         permission="local_write",
         function=tool_workspace_write_file,
         requires_confirmation=True,
     ),
     "workspace.append_file": ToolSpec(
         name="workspace.append_file",
-        description="Append text to a workspace-relative file.",
-        args_description='{"path": "notes.txt", "content": "text", "create": true}',
+        description="Append text to one workspace-relative file.",
+        args_description=(
+            '{"path": "<workspace-relative-file-path>", '
+            '"content": "<text-to-append>", '
+            '"create": true}'
+        ),
         permission="local_write",
         function=tool_workspace_append_file,
         requires_confirmation=True,
     ),
     "memory.list": ToolSpec(
         name="memory.list",
-        description="List saved memories.",
+        description="List saved active memories available to Mind.",
         args_description="{}",
         permission="read_only",
         function=tool_memory_list,
@@ -68,7 +76,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
     "codebase.list_files": ToolSpec(
         name="codebase.list_files",
-        description="List source files in the configured project codebase.",
+        description="List source files visible inside the configured project codebase.",
         args_description="{}",
         permission="read_only",
         function=tool_codebase_list_files,
@@ -76,8 +84,8 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
     "codebase.read_file": ToolSpec(
         name="codebase.read_file",
-        description="Read a project-relative source file from the configured codebase.",
-        args_description='{"path": "mind/agent/loop.py"}',
+        description="Read one project-relative source file from the configured codebase.",
+        args_description='{"path": "<project-relative-source-file-path>"}',
         permission="read_only",
         function=tool_codebase_read_file,
         requires_confirmation=False,
@@ -92,7 +100,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
     "project.status": ToolSpec(
         name="project.status",
-        description="List information about the current status of the Mind project.",
+        description="Show Mind's current project/runtime status summary.",
         args_description="{}",
         permission="read_only",
         function=tool_project_status,
@@ -101,14 +109,17 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     "project.devlog": ToolSpec(
         name="project.devlog",
         description="Append a dated project devlog entry to workspace/devlog.md.",
-        args_description='{"summary": "What changed today.", "next_steps": ["Next task."]}',
+        args_description=(
+            '{"summary": "<what-changed>", '
+            '"next_steps": ["<next-step>", "<next-step>"]}'
+        ),
         permission="local_write",
         function=tool_project_devlog,
         requires_confirmation=True,
     ),
     "world.omens": ToolSpec(
         name="world.omens",
-        description="Fetch a live Earth/space anomaly briefing from public APIs.",
+        description="Fetch a live Earth/space anomaly briefing from fixed public APIs.",
         args_description='{"max_items": 5}',
         permission="external_read",
         function=tool_world_omens,
@@ -116,12 +127,12 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
     "git.status": ToolSpec(
         name="git.status",
-        description="Get the current Git status of the project repository.",
+        description="Show read-only Git status for the configured project repository.",
         args_description="{}",
         permission="read_only",
         function=tool_git_status,
         requires_confirmation=False,
-    )
+    ),
 }
 
 

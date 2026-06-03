@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import mind.agent.loop as agent
+from mind.agent.loop import PROTOCOL_REPAIR_MESSAGE
 from mind.agent.protocol import (
     FinalAnswer,
     InvalidAgentResponse,
@@ -567,3 +568,43 @@ def test_run_agent_passes_confirmation_callback_to_tool(
 
     assert result == "Done."
     assert seen_confirm == [fake_confirm]
+
+
+def test_run_agent_stops_when_model_repeats_same_failing_tool_call(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """run_agent should stop instead of repeating the same failed tool call."""
+    config = make_test_config(tmp_path)
+    repeated_call = (
+        '{"type": "tool_call", "tool": "workspace.read_file", '
+        '"args": {"path": "missing.txt"}}'
+    )
+    responses = iter([repeated_call, repeated_call])
+    tool_calls = []
+
+    def fake_complete(config, messages):
+        return next(responses)
+
+    def fake_run_tool(config, tool_name, args, confirm=None):
+        tool_calls.append((tool_name, args))
+        return ToolResult.failure_result(
+            tool_name=tool_name,
+            error="Error: File not found.",
+        )
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+    monkeypatch.setattr(agent, "run_tool", fake_run_tool)
+
+    result = agent.run_agent(config, "read missing file")
+
+    assert result == (
+        "Error: Agent repeated the same failing tool call instead of recovering."
+    )
+    assert tool_calls == [("workspace.read_file", {"path": "missing.txt"})]
+
+
+def test_protocol_repair_message_does_not_include_concrete_tool_paths():
+    """Repair prompt should not bias the model toward irrelevant example files."""
+    assert "notes.txt" not in PROTOCOL_REPAIR_MESSAGE
+    assert "workspace.read_file" not in PROTOCOL_REPAIR_MESSAGE

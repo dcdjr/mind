@@ -21,16 +21,26 @@ MAX_AGENT_STEPS = 10
 
 PROTOCOL_REPAIR_MESSAGE = (
     "Your previous response was invalid for Mind's agent protocol.\n\n"
-    "Continue the original user task. Do not acknowledge this correction. "
-    "Do not explain the protocol. Do not apologize.\n\n"
+    "Continue the original user task using the information already gathered. "
+    "Do not restart the task. Do not call unrelated tools. Do not copy placeholder "
+    "tool names or placeholder arguments from these instructions.\n\n"
     "Return exactly one strict JSON object and nothing else.\n\n"
-    "If more information is needed, return a tool call object:\n"
-    '{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}\n\n'
-    "If the original task is complete, return a final answer object:\n"
-    '{"type": "final", "answer": "Your answer here."}\n\n'
-    "Important JSON rules:\n"
-    "- Do not include markdown outside the JSON object.\n"
-    "- Do not use raw multiline strings inside JSON.\n"
+    "Valid response shapes:\n"
+    "- Tool call: "
+    '{"type": "tool_call", "tool": "<available_tool_name>", "args": {}}\n'
+    "- Final answer: "
+    '{"type": "final", "answer": "<final answer text>"}\n\n'
+    "Tool-call rules:\n"
+    "- Use only a tool name listed in the available tools section.\n"
+    "- Use arguments that match that tool's Args description.\n"
+    "- If a previous tool call succeeded, use its result instead of repeating work.\n"
+    "- If a previous tool call failed, do not repeat the same tool call with the same args.\n"
+    "- If enough information is already available, return a final answer.\n\n"
+    "JSON rules:\n"
+    "- Return one JSON object only.\n"
+    "- Do not wrap the JSON in markdown code fences.\n"
+    "- Do not include prose outside the JSON object.\n"
+    "- Do not use raw multiline strings inside JSON values.\n"
     "- Escape newlines inside JSON strings as \\n.\n"
     "- Use either a tool_call object or a final answer object."
 )
@@ -68,6 +78,8 @@ def run_agent(
     )
 
     agent_trace = AgentTrace() if trace else None
+
+    failed_tool_calls: set[tuple[str, str]] = set()
 
     # repair_attempted is separate from tool_steps because a protocol repair is
     # a formatting retry, not a meaningful agent action toward the task.
@@ -137,9 +149,18 @@ def run_agent(
         if isinstance(action, ToolCall):
             tool_steps += 1
 
+            tool_key = (action.tool, json.dumps(action.args, sort_keys=True))
+            if tool_key in failed_tool_calls:
+                return finish(
+                    "Error: Agent repeated the same failing tool call instead of recovering."
+                )
+
             # run_tool is the permission/confirmation boundary. The agent loop
             # never calls tool functions directly, even after protocol parsing.
             tool_result = run_tool(config, action.tool, action.args, confirm=confirm)
+
+            if not tool_result.success:
+                failed_tool_calls.add(tool_key)
 
             if agent_trace is not None:
                 agent_trace.record_tool_call(

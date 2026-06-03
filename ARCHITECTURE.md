@@ -194,6 +194,7 @@ mind/tools/workspace.py  workspace-related tools
 mind/tools/codebase.py   codebase-related tools
 mind/tools/memory.py     memory-related tools
 mind/tools/internet.py   external read-only tools
+mind/tools/git.py        read-only Git status tool
 ```
 
 The current registry includes:
@@ -210,6 +211,7 @@ internet.github_zen
 world.omens
 project.status
 project.devlog
+git.status
 ```
 
 Tools follow a common function shape:
@@ -359,9 +361,8 @@ Before high-impact integrations, the foundation should be strengthened in this o
 1. context integration for semantic memory retrieval
 2. archive command for reviewed memories
 3. mission/run history
-4. read-only Git/project status tools
-5. controlled test runner with explicit local-execute permission
-6. model provider abstraction
+4. controlled test runner with explicit local-execute permission
+5. model provider abstraction
 ```
 
 ## Long-Term Direction

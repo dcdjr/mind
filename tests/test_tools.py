@@ -274,34 +274,37 @@ def test_format_available_tools_uses_tool_spec_metadata(tmp_path: Path):
     formatted_tools = format_available_tools(config)
 
     assert "workspace.list_files" in formatted_tools
-    assert "List files in the workspace." in formatted_tools
+    assert "List files in Mind's controlled workspace directory." in formatted_tools
 
     assert "workspace.read_file" in formatted_tools
-    assert '{"path": "notes.txt"}' in formatted_tools
+    assert '{"path": "<workspace-relative-file-path>"}' in formatted_tools
 
     assert "workspace.write_file" in formatted_tools
-    assert "Write text to a workspace-relative file." in formatted_tools
+    assert "Write text to one workspace-relative file." in formatted_tools
 
     assert "workspace.append_file" in formatted_tools
-    assert "Append text to a workspace-relative file." in formatted_tools
+    assert "Append text to one workspace-relative file." in formatted_tools
 
     assert "memory.list" in formatted_tools
-    assert "List saved memories." in formatted_tools
+    assert "List saved active memories available to Mind." in formatted_tools
 
     assert "codebase.list_files" in formatted_tools
-    assert "List source files in the configured project codebase." in formatted_tools
+    assert "List source files visible inside the configured project codebase." in formatted_tools
 
     assert "codebase.read_file" in formatted_tools
-    assert '{"path": "mind/agent/loop.py"}' in formatted_tools
+    assert '{"path": "<project-relative-source-file-path>"}' in formatted_tools
 
     assert "internet.github_zen" in formatted_tools
     assert "Fetch a short random phrase from GitHub's public Zen API." in formatted_tools
 
     assert "project.status" in formatted_tools
-    assert "List information about the current status of the Mind project." in formatted_tools
+    assert "Show Mind's current project/runtime status summary." in formatted_tools
 
     assert "project.devlog" in formatted_tools
     assert "Append a dated project devlog entry to workspace/devlog.md." in formatted_tools
+
+    assert "git.status" in formatted_tools
+    assert "Show read-only Git status for the configured project repository." in formatted_tools
 
     assert "Permission:" in formatted_tools
     assert "Requires confirmation:" in formatted_tools
@@ -319,6 +322,7 @@ def test_format_available_tools_hides_disabled_local_write_tools(tmp_path: Path)
     assert "codebase.list_files" in formatted_tools
     assert "codebase.read_file" in formatted_tools
     assert "project.status" in formatted_tools
+    assert "git.status" in formatted_tools
 
     assert "workspace.write_file" not in formatted_tools
     assert "workspace.append_file" not in formatted_tools
@@ -511,6 +515,7 @@ def test_existing_read_tools_do_not_require_confirmation():
     assert TOOL_REGISTRY["internet.github_zen"].requires_confirmation is False
     assert TOOL_REGISTRY["world.omens"].requires_confirmation is False
     assert TOOL_REGISTRY["project.status"].requires_confirmation is False
+    assert TOOL_REGISTRY["git.status"].requires_confirmation is False
 
 
 def test_permission_denial_message_uses_actual_permission(monkeypatch, tmp_path: Path):
@@ -1089,3 +1094,13 @@ def test_project_devlog_tool_rejects_non_string_next_steps(tmp_path: Path):
     assert "Error:" in result.output
     assert "next_steps" in result.output
     assert not (config.paths.workspace / "devlog.md").exists()
+
+
+def test_tool_arg_descriptions_use_templates_not_concrete_example_paths():
+    """Tool descriptions should avoid concrete paths that models may blindly copy."""
+    registry_text = "\n".join(
+        spec.args_description for spec in TOOL_REGISTRY.values()
+    )
+
+    assert "notes.txt" not in registry_text
+    assert "mind/agent/loop.py" not in registry_text
