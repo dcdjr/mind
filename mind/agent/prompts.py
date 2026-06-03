@@ -18,9 +18,10 @@ def build_agent_system_prompt(
         "Available tools under the current configuration:\n"
         f"{format_available_tools(config)}\n\n"
         "Tool call format:\n"
-        '{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}\n\n'
+        '{"type": "tool_call", "tool": "<available_tool_name>", '
+        '"args": {"<arg_name>": "<arg_value>"}}\n\n'
         "Final answer format:\n"
-        '{"type": "final", "answer": "Your answer here."}\n\n'
+        '{"type": "final", "answer": "<final-answer-text>"}\n\n'
         "Tool-use rules:\n"
         "- Use tools when the answer depends on local workspace, memory, "
         "project, or system state.\n"

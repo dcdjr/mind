@@ -36,7 +36,8 @@ def build_router_system_prompt() -> str:
         '2. "default": Use this for everything else, including general '
         "conversation, basic tasks,\n"
         "   private data parsing, simple summaries, or routine scripts.\n\n"
-        'JSON format output example: {"model": "default"}\n\n'
+        'JSON output shape: {"model": "<route_label>"}\n'
+        'Allowed route labels: "default" or "cloud".\n\n'
         "CRITICAL: You must output a valid JSON object like above. Do not "
         "include markdown formatting or extra text.\n"
         "STRICT JSON."

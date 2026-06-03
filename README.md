@@ -453,13 +453,13 @@ The agent asks the local model to return one of two JSON response types.
 Tool call:
 
 ```json
-{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}
+{"type": "tool_call", "tool": "<available_tool_name>", "args": {"<arg_name>": "<arg_value>"}}
 ```
 
 Final answer:
 
 ```json
-{"type": "final", "answer": "Your answer here."}
+{"type": "final", "answer": "<final-answer-text>"}
 ```
 
 When the model requests a tool, Mind:

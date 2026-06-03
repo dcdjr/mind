@@ -2,6 +2,7 @@ from pathlib import Path
 
 import mind.agent.loop as agent
 from mind.agent.loop import PROTOCOL_REPAIR_MESSAGE
+from mind.agent.prompts import build_agent_system_prompt
 from mind.agent.protocol import (
     FinalAnswer,
     InvalidAgentResponse,
@@ -606,5 +607,20 @@ def test_run_agent_stops_when_model_repeats_same_failing_tool_call(
 
 def test_protocol_repair_message_does_not_include_concrete_tool_paths():
     """Repair prompt should not bias the model toward irrelevant example files."""
+    assert '"tool": "<available_tool_name>"' in PROTOCOL_REPAIR_MESSAGE
+    assert '"<arg_name>": "<arg_value>"' in PROTOCOL_REPAIR_MESSAGE
+    assert '"answer": "<final-answer-text>"' in PROTOCOL_REPAIR_MESSAGE
     assert "notes.txt" not in PROTOCOL_REPAIR_MESSAGE
     assert "workspace.read_file" not in PROTOCOL_REPAIR_MESSAGE
+
+
+def test_agent_system_prompt_uses_placeholder_json_examples(tmp_path: Path):
+    """Agent prompt JSON examples should use placeholders instead of concrete paths."""
+    config = make_test_config(tmp_path)
+
+    system_prompt = build_agent_system_prompt(config)
+
+    assert '"tool": "<available_tool_name>"' in system_prompt
+    assert '"<arg_name>": "<arg_value>"' in system_prompt
+    assert '"answer": "<final-answer-text>"' in system_prompt
+    assert "notes.txt" not in system_prompt

@@ -169,13 +169,13 @@ mind/agent/trace.py     human-readable trace formatting
 The agent uses a strict JSON protocol. The model may return either a tool call:
 
 ```json
-{"type": "tool_call", "tool": "workspace.read_file", "args": {"path": "notes.txt"}}
+{"type": "tool_call", "tool": "<available_tool_name>", "args": {"<arg_name>": "<arg_value>"}}
 ```
 
 or a final answer:
 
 ```json
-{"type": "final", "answer": "Your answer here."}
+{"type": "final", "answer": "<final-answer-text>"}
 ```
 
 The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops. It supports one repair attempt for invalid agent JSON and can include prior chat messages when running in tool-enabled chat. Trace output previews long tool results and invalid raw model responses so debugging output remains readable.

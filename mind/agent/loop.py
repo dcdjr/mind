@@ -27,9 +27,10 @@ PROTOCOL_REPAIR_MESSAGE = (
     "Return exactly one strict JSON object and nothing else.\n\n"
     "Valid response shapes:\n"
     "- Tool call: "
-    '{"type": "tool_call", "tool": "<available_tool_name>", "args": {}}\n'
+    '{"type": "tool_call", "tool": "<available_tool_name>", '
+    '"args": {"<arg_name>": "<arg_value>"}}\n'
     "- Final answer: "
-    '{"type": "final", "answer": "<final answer text>"}\n\n'
+    '{"type": "final", "answer": "<final-answer-text>"}\n\n'
     "Tool-call rules:\n"
     "- Use only a tool name listed in the available tools section.\n"
     "- Use arguments that match that tool's Args description.\n"

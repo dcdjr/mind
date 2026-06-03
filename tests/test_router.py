@@ -73,6 +73,14 @@ def test_resolve_model_falls_back_to_default_for_unknown_label(tmp_path: Path):
     assert router.resolve_model(config, "nonsense") == "gemma4:e4b"
 
 
+def test_router_system_prompt_uses_placeholder_json_shape():
+    """Router prompt should use a placeholder route label in its JSON shape."""
+    system_prompt = router.build_router_system_prompt()
+
+    assert '{"model": "<route_label>"}' in system_prompt
+    assert '{"model": "default"}' not in system_prompt
+
+
 def test_route_parses_valid_router_output(monkeypatch, tmp_path: Path):
     config = make_test_config(tmp_path)
 
