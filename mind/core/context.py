@@ -28,6 +28,9 @@ def format_workspace_file_context(file_path: Path, contents: str) -> str:
     return f"FILE: {file_path}\n---\n{contents}"
 
 
+# Prefer query-specific semantic memory when embeddings are available.
+# If embedding generation or vector lookup fails, fall back to recent memories
+# so prompt construction remains reliable.
 def build_memory_context(
     config: Config,
     query: str | None = None,
