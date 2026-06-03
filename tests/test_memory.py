@@ -15,14 +15,17 @@ from mind.core.config import (
 )
 from mind.memory import (
     add_memory,
+    confirm_memory,
     delete_memory,
     format_memories_for_prompt,
     get_memory_embedding,
     init_db,
     list_memories_missing_embeddings,
     list_memory_embeddings,
+    list_memory_records,
     list_memories,
     memory_exists,
+    reject_memory,
     store_memory_embedding,
 )
 
@@ -376,3 +379,76 @@ def test_delete_memory_removes_stored_embeddings(tmp_path: Path):
     assert delete_memory(config, 1) is True
 
     assert get_memory_embedding(config, 1, "nomic-embed-text") is None
+
+
+def test_list_memory_records_returns_review_metadata(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "Manual memory.")
+    add_memory(
+        config,
+        "Auto memory.",
+        source="chat_auto",
+        status="auto_extracted",
+        confidence=0.6,
+    )
+
+    records = list_memory_records(config)
+
+    assert len(records) == 2
+    assert records[0].text == "Manual memory."
+    assert records[0].status == "confirmed"
+    assert records[0].source == "manual"
+    assert records[1].text == "Auto memory."
+    assert records[1].status == "auto_extracted"
+    assert records[1].source == "chat_auto"
+    assert records[1].confidence == 0.6
+
+
+def test_list_memory_records_filters_by_status(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "Confirmed memory.")
+    add_memory(
+        config,
+        "Auto memory.",
+        source="chat_auto",
+        status="auto_extracted",
+        confidence=0.6,
+    )
+
+    records = list_memory_records(config, status="auto_extracted")
+
+    assert len(records) == 1
+    assert records[0].text == "Auto memory."
+
+
+def test_confirm_memory_updates_status(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(
+        config,
+        "Auto memory.",
+        source="chat_auto",
+        status="auto_extracted",
+        confidence=0.6,
+    )
+
+    assert confirm_memory(config, 1) is True
+
+    records = list_memory_records(config)
+    assert records[0].status == "confirmed"
+
+
+def test_reject_memory_excludes_memory_from_active_list(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "Keep me.")
+    add_memory(config, "Reject me.")
+
+    assert reject_memory(config, 2) is True
+
+    assert list_memories(config) == [(1, "Keep me.")]
+
+    rejected = list_memory_records(config, status="rejected")
+    assert rejected[0].text == "Reject me."

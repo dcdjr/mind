@@ -4,7 +4,16 @@ import sys
 
 from mind import __version__
 from mind.core.config import Config
-from mind.memory import add_memory, list_memories, delete_memory
+from mind.memory import (
+    add_memory,
+    list_memories,
+    delete_memory,
+    list_memories,
+    list_memory_records,
+    reject_memory,
+    confirm_memory,
+    reject_memory,
+)
 from mind.workspace import ensure_workspace, list_workspace_files
 from mind.core.diagnostics import is_ollama_running
 from mind.runtime.ask import ask_once
@@ -17,6 +26,11 @@ from mind.agent import (
     run_agent,
     save_agent_run,
 )
+
+
+def _format_confidence(value: float) -> str:
+    """Format memory confidence consistently for CLI output."""
+    return f"{value:.2f}"
 
 
 def _split_agent_response_for_persistence(
@@ -314,22 +328,33 @@ def run_remember_command(config: Config, text: str) -> int:
     return 0
 
 
-def run_memories_command(config: Config) -> int:
-    """Lists all memories currently stored in Mind's memory database."""
-    memories = list_memories(config)
+def run_memories_command(config: Config, status: str | None = None) -> int:
+    """List memories, optionally filtered by review status."""
+    records = list_memory_records(config, status=status)
 
-    if not memories:
-        print("No memories stored.")
+    if not records:
+        if status:
+            print(f"No memories found with status '{status}'.")
+        else:
+            print("No memories stored.")
         return 0
 
     print("Memories:")
     print()
 
-    for memory_id, memory_text in memories:
-        print(f"{memory_id}. {memory_text}")
+    for memory in records:
+        print(f"{memory.id}. {memory.text}")
+        print(
+            "   "
+            f"status={memory.status} "
+            f"source={memory.source} "
+            f"kind={memory.kind} "
+            f"confidence={_format_confidence(memory.confidence)} "
+            f"uses={memory.use_count}"
+        )
+        print()
 
     return 0
-
 
 def run_forget_command(config: Config, memory_id: int) -> int:
     """Deletes a memory in Mind's memory database by id."""
@@ -531,3 +556,32 @@ def run_uncensored_command(config: Config, user_prompt: str) -> int:
     print(response)
 
     return 0
+
+
+def run_memory_confirm_command(config: Config, memory_id: int) -> int:
+    """Confirm an auto-extracted or unreviewed memory."""
+    updated = confirm_memory(config, memory_id)
+
+    if not updated:
+        print(f"No memory found with ID {memory_id}.")
+        return 0
+
+    print("Memory confirmed.")
+    return 0
+
+
+def run_memory_reject_command(config: Config, memory_id: int) -> int:
+    """Reject a memory without deleting it."""
+    updated = reject_memory(config, memory_id)
+
+    if not updated:
+        print(f"No memory found with ID {memory_id}.")
+        return 0
+
+    print("Memory rejected.")
+    return 0
+
+
+def run_memory_delete_command(config: Config, memory_id: int) -> int:
+    """Delete a memory permanently."""
+    return run_forget_command(config, memory_id)

@@ -18,6 +18,9 @@ from mind.cli.commands import (
     run_runs_command,
     run_run_show_command,
     run_uncensored_command,
+    run_memory_confirm_command,
+    run_memory_reject_command,
+    run_memory_delete_command,
 )
 
 
@@ -99,9 +102,14 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The memory text to store.",
     )
 
-    subparsers.add_parser(
+    memories_parser = subparsers.add_parser(
         "memories",
         help="List stored memories.",
+    )
+    memories_parser.add_argument(
+        "--status",
+        choices=["confirmed", "auto_extracted", "rejected", "archived"],
+        help="Only show memories with this review status.",
     )
 
     forget_parser = subparsers.add_parser(
@@ -109,6 +117,42 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="Delete a saved memory by ID.",
     )
     forget_parser.add_argument(
+        "memory_id",
+        type=int,
+        help="The ID of the memory to delete.",
+    )
+
+    memory_parser = subparsers.add_parser(
+        "memory",
+        help="Review or manage individual memories.",
+    )
+    memory_subparsers = memory_parser.add_subparsers(dest="memory_command")
+
+    memory_confirm_parser = memory_subparsers.add_parser(
+        "confirm",
+        help="Mark a memory as confirmed.",
+    )
+    memory_confirm_parser.add_argument(
+        "memory_id",
+        type=int,
+        help="The ID of the memory to confirm.",
+    )
+
+    memory_reject_parser = memory_subparsers.add_parser(
+        "reject",
+        help="Mark a memory as rejected.",
+    )
+    memory_reject_parser.add_argument(
+        "memory_id",
+        type=int,
+        help="The ID of the memory to reject.",
+    )
+
+    memory_delete_parser = memory_subparsers.add_parser(
+        "delete",
+        help="Delete a memory permanently.",
+    )
+    memory_delete_parser.add_argument(
         "memory_id",
         type=int,
         help="The ID of the memory to delete.",
@@ -199,10 +243,22 @@ def main(argv: list[str] | None = None) -> int:
         return run_remember_command(config, args.text)
 
     if args.command == "memories":
-        return run_memories_command(config)
+        return run_memories_command(config, args.status)
 
     if args.command == "forget":
         return run_forget_command(config, args.memory_id)
+
+    if args.command == "memory":
+        if args.memory_command == "confirm":
+            return run_memory_confirm_command(config, args.memory_id)
+
+        if args.memory_command == "reject":
+            return run_memory_reject_command(config, args.memory_id)
+
+        if args.memory_command == "delete":
+            return run_memory_delete_command(config, args.memory_id)
+
+        parser.error("memory requires a subcommand, such as `confirm`, `reject`, or `delete`.")
 
     if args.command == "agent":
         return run_agent_command(config, args.prompt, args.trace)

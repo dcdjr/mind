@@ -9,6 +9,13 @@ from mind.memory.store import (
     list_memories,
     memory_exists,
     store_memory_embedding,
+    MemoryRecord,
+    VALID_MEMORY_STATUSES,
+    list_memory_records,
+    update_memory_status,
+    confirm_memory,
+    reject_memory,
+    
 )
 from mind.memory.extractor import (
     extract_memories,
@@ -36,4 +43,10 @@ __all__ = [
     "cosine_similarity",
     "rank_memory_embeddings",
     "retrieve_relevant_memories",
+    "MemoryRecord",
+    "VALID_MEMORY_STATUSES",
+    "list_memory_records",
+    "update_memory_status",
+    "confirm_memory",
+    "reject_memory",
 ]

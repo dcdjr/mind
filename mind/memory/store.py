@@ -3,10 +3,34 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timezone
+from dataclasses import dataclass
 
 import re
 
 from mind.core.config import Config
+
+
+VALID_MEMORY_STATUSES = {
+    "confirmed",
+    "auto_extracted",
+    "rejected",
+    "archived",
+}
+
+@dataclass(frozen=True)
+class MemoryRecord:
+    """A full memory row used by review/listing commands."""
+
+    id: str
+    text: str
+    kind: str
+    source: str
+    status: str
+    confidence: float
+    created_at: str
+    updated_at: str
+    last_used_at: str | None
+    use_count: int
 
 
 def _normalize_memory_text(text: str) -> str:
@@ -424,3 +448,104 @@ def list_memories_missing_embeddings(
         ).fetchall()
 
     return [(row[0], row[1]) for row in rows]
+
+
+def list_memory_records(
+    config: Config,
+    status: str | None = None,
+) -> list[MemoryRecord]:
+    """
+    Return memory records with review metadata.
+
+    If status is provided, only memories with that exact status are returned.
+    This is meant for CLI review commands, not prompt injection.
+    """
+    init_db(config)
+
+    query = """
+        SELECT
+            id,
+            text,
+            kind,
+            source,
+            status,
+            confidence,
+            created_at,
+            updated_at,
+            last_used_at,
+            use_count
+        FROM memories
+    """
+    params: tuple[str, ...] = ()
+
+    if status is not None:
+        clean_status = status.strip()
+
+        if clean_status not in VALID_MEMORY_STATUSES:
+            raise ValueError(f"Invalid memory status: {status!r}.")
+
+        query += " WHERE status = ?"
+        params = (clean_status,)
+
+    query += " ORDER BY id ASC"
+
+    with sqlite3.connect(config.paths.database) as conn:
+        rows = conn.execute(query, params).fetchall()
+
+    return [
+        MemoryRecord(
+            id=row[0],
+            text=row[1],
+            kind=row[2],
+            source=row[3],
+            status=row[4],
+            confidence=row[5],
+            created_at=row[6],
+            updated_at=row[7],
+            last_used_at=row[8],
+            use_count=row[9],
+        )
+        for row in rows
+    ]
+
+
+def update_memory_status(
+    config: Config,
+    memory_id: int,
+    status: str,
+) -> bool:
+    """Update one memory's review status."""
+    init_db(config)
+
+    clean_status = status.strip()
+
+    if clean_status not in VALID_MEMORY_STATUSES:
+        raise ValueError(f"Invalid memory status: {status!r}.")
+
+    now = _utc_now_iso()
+
+    with sqlite3.connect(config.paths.database) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE memories
+            SET status = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                clean_status,
+                now,
+                memory_id,
+            ),
+        )
+
+    return cursor.rowcount > 0
+
+
+def confirm_memory(config: Config, memory_id: int) -> bool:
+    """Mark a memory as confirmed."""
+    return update_memory_status(config, memory_id, "confirmed")
+
+
+def reject_memory(config: Config, memory_id: int) -> bool:
+    """Mark a memory as rejected without deleting it."""
+    return update_memory_status(config, memory_id, "rejected")

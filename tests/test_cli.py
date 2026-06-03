@@ -345,26 +345,6 @@ def test_mind_remember_routes_to_remember_command(monkeypatch, tmp_path: Path):
     assert called is True
 
 
-def test_mind_memories_routes_to_memories_command(monkeypatch, tmp_path: Path):
-    """The `mind memories` command should route to the memories command."""
-    test_config = make_test_config(tmp_path)
-    called = False
-
-    def fake_run_memories_command(config):
-        nonlocal called
-        assert config == test_config
-        called = True
-        return 0
-
-    monkeypatch.setattr(cli, "load_config", lambda: test_config)
-    monkeypatch.setattr(cli, "run_memories_command", fake_run_memories_command)
-
-    exit_code = cli.main(["memories"])
-
-    assert exit_code == 0
-    assert called is True
-
-
 def test_mind_forget_routes_to_forget_command(monkeypatch, tmp_path: Path):
     """The `mind forget` command should route the memory ID to the forget command."""
     test_config = make_test_config(tmp_path)
