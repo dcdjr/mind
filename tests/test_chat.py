@@ -15,6 +15,7 @@ from mind.core.context import ContextBundle
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for chat tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",
@@ -401,5 +402,4 @@ def test_run_chat_without_tools_uses_normal_model_path(capsys, monkeypatch, tmp_
     assert "Mind chat. Type /exit or /quit to quit." in captured.out
     assert "normal response" in captured.out
     assert complete_calls == [{"role": "user", "content": "hello"}]
-
 

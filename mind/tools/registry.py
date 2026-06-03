@@ -13,6 +13,7 @@ from mind.tools.internet import (
     tool_world_omens,
 )
 from mind.tools.memory import tool_memory_list
+from mind.tools.project import tool_project_devlog, tool_project_status
 from mind.tools.result import ToolResult
 from mind.tools.spec import ToolSpec
 from mind.tools.workspace import (
@@ -21,7 +22,6 @@ from mind.tools.workspace import (
     tool_workspace_read_file,
     tool_workspace_write_file,
 )
-from mind.tools.project import tool_project_status, tool_project_devlog
 
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {

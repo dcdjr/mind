@@ -76,6 +76,7 @@ def run_agent(
     step_number = 1
 
     def finish(answer: str) -> str:
+        """Attach trace output to an answer when tracing is enabled."""
         if agent_trace is None:
             return answer
 

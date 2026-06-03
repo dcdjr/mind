@@ -23,6 +23,7 @@ from mind.tools import ToolResult
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for agent tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",
@@ -318,7 +319,9 @@ def test_run_agent_stops_after_max_steps(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(
         agent,
         "complete",
-        lambda config, messages: '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}',
+        lambda config, messages: (
+            '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}'
+        ),
     )
 
     monkeypatch.setattr(
@@ -533,7 +536,10 @@ def test_run_agent_passes_confirmation_callback_to_tool(
 
     responses = iter(
         [
-            '{"type": "tool_call", "tool": "workspace.write_file", "args": {"path": "notes.txt", "content": "hello"}}',
+            (
+                '{"type": "tool_call", "tool": "workspace.write_file", '
+                '"args": {"path": "notes.txt", "content": "hello"}}'
+            ),
             '{"type": "final", "answer": "Done."}',
         ]
     )

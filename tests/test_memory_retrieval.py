@@ -16,6 +16,7 @@ import mind.memory.retrieval as retrieval
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for memory-retrieval tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",

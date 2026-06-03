@@ -67,7 +67,10 @@ def parse_agent_action(raw_output: str) -> AgentAction:
     )
 
 
-def _parse_final_answer(parsed: dict[str, Any], raw_output: str) -> FinalAnswer | InvalidAgentResponse:
+def _parse_final_answer(
+    parsed: dict[str, Any],
+    raw_output: str,
+) -> FinalAnswer | InvalidAgentResponse:
     """Validate a final-answer response."""
     answer = parsed.get("answer")
 

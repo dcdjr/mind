@@ -16,18 +16,24 @@ DEFAULT_CONFIG_PATH = Path("configs/config.toml")
 
 @dataclass(frozen=True)
 class AssistantConfig:
+    """Assistant identity shown in prompts and CLI output."""
+
     name: str
     description: str
 
 
 @dataclass(frozen=True)
 class PathConfig:
+    """Filesystem paths used by Mind's local runtime."""
+
     workspace: Path
     database: Path
 
 
 @dataclass(frozen=True)
 class ModelConfig:
+    """Configured model provider and model names."""
+
     provider: str
     base_url: str
     default: str
@@ -38,6 +44,8 @@ class ModelConfig:
 
 @dataclass(frozen=True)
 class MemoryConfig:
+    """Memory extraction, injection, and prompt limit settings."""
+
     auto_extract: bool
     inject_context: bool
     max_relevant_memories: int
@@ -45,6 +53,8 @@ class MemoryConfig:
 
 @dataclass(frozen=True)
 class EmbeddingConfig:
+    """Embedding provider settings used for semantic memory retrieval."""
+
     provider: str
     model: str
     enabled: bool
@@ -52,11 +62,15 @@ class EmbeddingConfig:
 
 @dataclass(frozen=True)
 class ContextConfig:
+    """Limits for optional context included in model prompts."""
+
     max_workspace_chars: int
 
 
 @dataclass(frozen=True)
 class ToolConfig:
+    """Permission policy for Mind's controlled tool registry."""
+
     allow_external_read: bool
     allow_local_write: bool
     allow_external_write: bool
@@ -66,11 +80,15 @@ class ToolConfig:
 
 @dataclass(frozen=True)
 class ProjectConfig:
+    """Project-root settings for read-only codebase access."""
+
     root: Path
 
 
 @dataclass(frozen=True)
 class Config:
+    """Complete typed configuration for one Mind runtime."""
+
     assistant: AssistantConfig
     paths: PathConfig
     model: ModelConfig

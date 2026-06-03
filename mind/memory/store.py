@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import sqlite3
-from datetime import datetime, timezone
-from dataclasses import dataclass
-
 import re
+import sqlite3
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from mind.core.config import Config
 
@@ -16,6 +15,7 @@ VALID_MEMORY_STATUSES = {
     "rejected",
     "archived",
 }
+
 
 @dataclass(frozen=True)
 class MemoryRecord:

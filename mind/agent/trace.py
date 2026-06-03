@@ -43,6 +43,7 @@ class AgentTrace:
         args: dict[str, Any],
         result: ToolResult,
     ) -> None:
+        """Record one tool call and its user-readable result preview."""
         formatted_args = json.dumps(args, sort_keys=True)
         output_preview = _preview_text(result.output)
 
@@ -67,6 +68,7 @@ class AgentTrace:
         self.entries.append("\n".join(lines))
 
     def record_final(self, step_number: int, answer: str) -> None:
+        """Record the final answer step."""
         self.entries.append(
             "\n".join(
                 [
@@ -78,6 +80,7 @@ class AgentTrace:
         )
 
     def record_error(self, step_number: int, message: str) -> None:
+        """Record an agent-level error step."""
         self.entries.append(
             "\n".join(
                 [
@@ -89,6 +92,7 @@ class AgentTrace:
         )
 
     def record_parse_failure(self, step_number: int, raw_response: str) -> None:
+        """Record an invalid model response for trace debugging."""
         self.entries.append(
             "\n".join(
                 [
@@ -101,6 +105,7 @@ class AgentTrace:
         )
 
     def render(self) -> str:
+        """Render all recorded trace entries as terminal-friendly text."""
         if not self.entries:
             return "Agent trace: no steps recorded."
 

@@ -14,6 +14,7 @@ from mind.core.config import (
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for router tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",

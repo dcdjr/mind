@@ -22,6 +22,7 @@ from mind.tools import (
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for tool tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",

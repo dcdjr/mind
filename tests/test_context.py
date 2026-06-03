@@ -13,6 +13,7 @@ from mind.core.config import (
 )
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for context tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",

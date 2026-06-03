@@ -15,6 +15,7 @@ from mind.core.context import ContextBundle
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for ask-runtime tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",

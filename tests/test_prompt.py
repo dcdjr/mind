@@ -25,12 +25,18 @@ def test_build_messages_returns_system_and_user_messages():
     assert messages[1]["role"] == "user"
     assert messages[1]["content"] == "hello"
 
+
 def test_build_system_prompt_includes_memory_context():
+    """The system prompt should include provided saved-memory context."""
     config = load_config(Path("configs/config.toml"))
+    memory_context = (
+        "Saved memories about the user and project:\n"
+        "- User prefers concise explanations."
+    )
 
     system_prompt = build_system_prompt(
         config,
-        memory_context="Saved memories about the user and project:\n- User prefers concise explanations.",
+        memory_context=memory_context,
     )
 
     assert "BEGIN SAVED MEMORIES" in system_prompt

@@ -22,27 +22,29 @@ def complete_small(config: Config, messages: list[dict[str, str]]) -> str:
 
 
 def build_router_system_prompt() -> str:
+    """Build the system prompt used by the small model router."""
     return (
-        """
-        You are a high-speed, accurate incoming request router for an LLM gateway.
-        Analyze the user's prompt and categorize it into exactly one of three destinations:
-
-        1. "cloud": Use this if the prompt requires advanced reasoning, deep mathematical logic,
-           real-time search engine data, complex code debugging, or massive analytical processing.
-           NEVER USE CLOUD IF THE PROMPT CONTAINS SENSITIVE OR PRIVATE DATA.
-        2. "default": Use this for everything else, including general conversation, basic tasks,
-           private data parsing, simple summaries, or routine scripts.
-
-        JSON format output example: {"model": "default"}
-
-        CRITICAL: You must output a valid JSON object like above. Do not include markdown formatting or extra text.
-        STRICT JSON.
-        """
+        "You are a high-speed, accurate incoming request router for an LLM "
+        "gateway.\n"
+        "Analyze the user's prompt and categorize it into exactly one of two "
+        "destinations:\n\n"
+        '1. "cloud": Use this if the prompt requires advanced reasoning, deep '
+        "mathematical logic,\n"
+        "   real-time search engine data, complex code debugging, or massive "
+        "analytical processing.\n"
+        "   NEVER USE CLOUD IF THE PROMPT CONTAINS SENSITIVE OR PRIVATE DATA.\n"
+        '2. "default": Use this for everything else, including general '
+        "conversation, basic tasks,\n"
+        "   private data parsing, simple summaries, or routine scripts.\n\n"
+        'JSON format output example: {"model": "default"}\n\n'
+        "CRITICAL: You must output a valid JSON object like above. Do not "
+        "include markdown formatting or extra text.\n"
+        "STRICT JSON."
     )
 
 
 def build_router_messages(user_prompt: str) -> list[dict[str, str]]:
-    """Build the message list sent to the small model to route responsiblity based on prompt."""
+    """Build messages sent to the small model for prompt routing."""
     return [
         {
             "role": "system",
@@ -51,11 +53,12 @@ def build_router_messages(user_prompt: str) -> list[dict[str, str]]:
         {
             "role": "user",
             "content": user_prompt,
-        }
+        },
     ]
 
 
 def resolve_model(config: Config, route_label: str) -> str:
+    """Resolve a known route label to a configured model name."""
     if route_label == "cloud" and config.model.cloud:
         return config.model.cloud
 

@@ -1,3 +1,17 @@
+from mind.memory.backfill import (
+    BackfillError,
+    BackfillResult,
+    backfill_embeddings,
+)
+from mind.memory.extractor import (
+    extract_memories,
+    parse_extracted_memories,
+)
+from mind.memory.retrieval import (
+    cosine_similarity,
+    rank_memory_embeddings,
+    retrieve_relevant_memories,
+)
 from mind.memory.store import (
     MemoryRecord,
     VALID_MEMORY_STATUSES,
@@ -15,15 +29,6 @@ from mind.memory.store import (
     reject_memory,
     store_memory_embedding,
     update_memory_status,
-)
-from mind.memory.extractor import (
-    extract_memories,
-    parse_extracted_memories,
-)
-from mind.memory.retrieval import (
-    cosine_similarity,
-    rank_memory_embeddings,
-    retrieve_relevant_memories,
 )
 
 __all__ = [
@@ -48,4 +53,7 @@ __all__ = [
     "update_memory_status",
     "confirm_memory",
     "reject_memory",
+    "BackfillError",
+    "BackfillResult",
+    "backfill_embeddings",
 ]

@@ -22,6 +22,8 @@ from mind.core.embeddings import (
 
 
 class FakeOllamaClient:
+    """Minimal fake Ollama client used by embedding tests."""
+
     def __init__(self, response=None, error: Exception | None = None):
         self.response = {"embeddings": [[1, 2.5, 3]]} if response is None else response
         self.error = error
@@ -37,6 +39,7 @@ class FakeOllamaClient:
 
 
 def make_test_config(tmp_path: Path, embeddings: EmbeddingConfig | None = None) -> Config:
+    """Build an isolated config for embedding tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",

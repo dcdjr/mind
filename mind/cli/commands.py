@@ -1,29 +1,31 @@
+import sys
 from pathlib import Path
 
-import sys
-
 from mind import __version__
-from mind.core.config import Config
-from mind.memory import (
-    add_memory,
-    confirm_memory,
-    delete_memory,
-    list_memories,
-    list_memory_records,
-    reject_memory,
-)
-from mind.workspace import ensure_workspace, list_workspace_files
-from mind.core.diagnostics import is_ollama_running
-from mind.runtime.ask import ask_once
-from mind.runtime.chat import run_chat
-from mind.tools import TOOL_REGISTRY, ToolSpec, tool_is_allowed_to_run
-from mind.runtime.confirmation import confirm_tool_run
 from mind.agent import (
     list_agent_runs,
     read_agent_run_metadata,
     run_agent,
     save_agent_run,
 )
+from mind.core.config import Config
+from mind.core.diagnostics import is_ollama_running
+from mind.memory import (
+    BackfillError,
+    BackfillResult,
+    add_memory,
+    backfill_embeddings,
+    confirm_memory,
+    delete_memory,
+    list_memories,
+    list_memory_records,
+    reject_memory,
+)
+from mind.runtime.ask import ask_once
+from mind.runtime.chat import run_chat
+from mind.runtime.confirmation import confirm_tool_run
+from mind.tools import TOOL_REGISTRY, ToolSpec, tool_is_allowed_to_run
+from mind.workspace import ensure_workspace, list_workspace_files
 
 
 def _format_confidence(value: float) -> str:
@@ -92,6 +94,7 @@ def _tool_permission_enabled(config: Config, permission: str) -> bool:
 
 
 def _get_python_version() -> str:
+    """Return the running Python version as major.minor.patch."""
     return (
         f"{sys.version_info.major}."
         f"{sys.version_info.minor}."
@@ -456,6 +459,7 @@ def run_tools_command(config: Config) -> int:
     print()
 
     def print_tool(spec: ToolSpec) -> None:
+        """Print one tool spec using the public CLI listing format."""
         print(spec.name)
         print(f"  Description: {spec.description}")
         print(f"  Args: {spec.args_description}")
@@ -522,7 +526,9 @@ def run_run_show_command(config: Config, run_id: str) -> int:
     if metadata is not None:
         print("Metadata:")
         print(f"  Status: {metadata.get('status', 'unknown')}")
-        print(f"  Model: {metadata.get('provider', 'unknown')} / {metadata.get('model', 'unknown')}")
+        provider = metadata.get("provider", "unknown")
+        model = metadata.get("model", "unknown")
+        print(f"  Model: {provider} / {model}")
         print(f"  Started: {metadata.get('started_at', 'unknown')}")
         print(f"  Finished: {metadata.get('finished_at', 'unknown')}")
         print()
@@ -545,6 +551,7 @@ def run_run_show_command(config: Config, run_id: str) -> int:
 
 
 def run_uncensored_command(config: Config, user_prompt: str) -> int:
+    """Run a one-shot prompt with the configured uncensored model."""
     response = ask_once(
         config,
         user_prompt,
@@ -583,3 +590,24 @@ def run_memory_reject_command(config: Config, memory_id: int) -> int:
 def run_memory_delete_command(config: Config, memory_id: int) -> int:
     """Delete a memory permanently."""
     return run_forget_command(config, memory_id)
+
+
+def run_memory_backfill_command(config: Config) -> int:
+    """Generate embeddings for memories missing them."""
+    result = backfill_embeddings(config)
+
+    print("Memory embedding backfill")
+    print()
+    print(f"Model: {result.model}")
+    print(f"Missing embeddings: {result.total_missing}")
+    print()
+
+    for error in result.errors:
+        print(f"Failed memory {error.memory_id}: {error.message}")
+
+    print()
+    print("Done.")
+    print(f"Succeeded: {result.succeeded}")
+    print(f"Failed: {result.failed}")
+
+    return 0

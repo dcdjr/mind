@@ -97,6 +97,7 @@ mind/
 
   memory/
     __init__.py
+    backfill.py
     store.py
     extractor.py
 
@@ -226,6 +227,7 @@ The memory package owns persistent memory and memory extraction.
 
 ```text
 mind/memory/store.py      SQLite-backed memory storage
+mind/memory/backfill.py   batch embedding generation for memories missing vectors
 mind/memory/extractor.py  model-output parsing for automatic memory extraction
 mind/memory/retrieval.py  cosine-similarity ranking over stored memory embeddings
 ```
@@ -246,7 +248,7 @@ last_used_at
 use_count
 ```
 
-Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so a future backfill can run one embedding model at a time. Retrieval embeds the query with the same configured model and ranks stored vectors with cosine similarity.
+Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so backfill can run one embedding model at a time. `mind memory backfill` generates vectors for active memories missing the configured model's embedding and records per-memory failures without stopping the batch. Retrieval embeds the query with the same configured model and ranks stored vectors with cosine similarity.
 
 Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 
@@ -257,12 +259,12 @@ mind memories --status auto_extracted
 mind memory confirm <memory-id>
 mind memory reject <memory-id>
 mind memory delete <memory-id>
+mind memory backfill
 ```
 
 Future memory improvements may include:
 
 ```text
-embedding backfill command
 usage tracking updates during retrieval
 archive command
 ```
@@ -354,8 +356,8 @@ Mind currently includes these safety boundaries:
 Before high-impact integrations, the foundation should be strengthened in this order:
 
 ```text
-1. memory review workflow
-2. context integration and backfill for semantic memory retrieval
+1. context integration for semantic memory retrieval
+2. archive command for reviewed memories
 3. mission/run history
 4. read-only Git/project status tools
 5. controlled test runner with explicit local-execute permission

@@ -35,6 +35,7 @@ Implemented:
 - `mind memory confirm <memory-id>`
 - `mind memory reject <memory-id>`
 - `mind memory delete <memory-id>`
+- `mind memory backfill`
 - `mind tools`
 - `mind runs`
 - `mind run show <run-id>`
@@ -49,6 +50,7 @@ Implemented:
 - SQLite-backed persistent memory
 - Memory context injection into prompts
 - Experimental automatic memory extraction during chat
+- Semantic memory embedding backfill
 - Bounded tool-using agent loop
 - Tool-enabled chat history
 - File-based agent run persistence
@@ -286,12 +288,13 @@ Delete a memory by ID:
 mind forget 1
 ```
 
-Review or remove an individual memory:
+Review, backfill, or remove memory data:
 
 ```bash
 mind memory confirm 1
 mind memory reject 2
 mind memory delete 3
+mind memory backfill
 ```
 
 List available tools:
@@ -416,7 +419,7 @@ mind memory delete 3
 
 Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. Valid statuses are `confirmed`, `auto_extracted`, `rejected`, and `archived`. `mind memories` shows all stored memory records with metadata, while prompt injection and semantic retrieval use only active memories with `confirmed` or `auto_extracted` status.
 
-The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
+The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. `mind memory backfill` generates embeddings for active memories missing a vector for the configured embedding model. One failed memory is recorded and skipped without stopping the rest of the batch. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
 
 During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts when `inject_context` is enabled. Query-specific prompts prefer semantic retrieval when embeddings are enabled, and fall back to recent memories if retrieval is unavailable.
 
@@ -654,6 +657,7 @@ The tests currently cover:
 - Memory deduplication
 - Memory deletion
 - Memory review status updates
+- Memory embedding backfill
 - Agent run persistence and inspection commands
 - Memory formatting
 - Memory embedding storage and lookup
@@ -701,8 +705,8 @@ Planned development stages:
 Near-term next steps:
 
 ```text
-1. Add memory review workflow.
-2. Add embedding backfill.
+1. Wire semantic memory retrieval into context building.
+2. Add an archive command for reviewed memories.
 3. Add mission/run history.
 4. Add read-only Git/project status tools.
 5. Add a controlled test-runner tool with explicit local-execute permission.

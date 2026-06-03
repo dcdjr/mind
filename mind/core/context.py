@@ -17,6 +17,8 @@ TRUNCATION_MARKER = "\n[Workspace context truncated]"
 
 @dataclass(frozen=True)
 class ContextBundle:
+    """Optional memory and workspace context prepared for a prompt."""
+
     memory_context: str | None
     workspace_context: str | None
 

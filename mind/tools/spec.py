@@ -19,6 +19,8 @@ PermissionLevel = Literal[
 
 @dataclass(frozen=True)
 class ToolSpec:
+    """Metadata and callable for one controlled Mind tool."""
+
     name: str
     description: str
     args_description: str

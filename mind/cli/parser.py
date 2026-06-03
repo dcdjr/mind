@@ -2,26 +2,27 @@ from __future__ import annotations
 
 import argparse
 
-from mind.core.config import Config, load_config
 from mind.cli.commands import (
-    run_files_command,
-    run_home_command,
-    run_doctor_command,
-    run_inspect_command,
-    run_remember_command,
-    run_memories_command,
-    run_forget_command,
+    run_agent_command,
     run_ask_command,
     run_chat_command,
-    run_agent_command,
-    run_tools_command,
-    run_runs_command,
-    run_run_show_command,
-    run_uncensored_command,
+    run_doctor_command,
+    run_files_command,
+    run_forget_command,
+    run_home_command,
+    run_inspect_command,
+    run_memories_command,
+    run_memory_backfill_command,
     run_memory_confirm_command,
-    run_memory_reject_command,
     run_memory_delete_command,
+    run_memory_reject_command,
+    run_remember_command,
+    run_run_show_command,
+    run_runs_command,
+    run_tools_command,
+    run_uncensored_command,
 )
+from mind.core.config import Config, load_config
 
 
 def build_parser(config: Config) -> argparse.ArgumentParser:
@@ -158,6 +159,11 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The ID of the memory to delete.",
     )
 
+    memory_subparsers.add_parser(
+        "backfill",
+        help="Generate embeddings for memories missing them.",
+    )
+
     agent_parser = subparsers.add_parser(
         "agent",
         help="Alias for `mind ask --tools`.",
@@ -258,7 +264,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.memory_command == "delete":
             return run_memory_delete_command(config, args.memory_id)
 
-        parser.error("memory requires a subcommand, such as `confirm`, `reject`, or `delete`.")
+        if args.memory_command == "backfill":
+            return run_memory_backfill_command(config)
+
+        parser.error(
+            "memory requires a subcommand, such as `confirm`, `reject`, `delete`, or `backfill`."
+        )
 
     if args.command == "agent":
         return run_agent_command(config, args.prompt, args.trace)

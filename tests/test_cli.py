@@ -16,6 +16,7 @@ from mind.core.config import (
 
 
 def make_test_config(tmp_path: Path) -> Config:
+    """Build an isolated config for CLI tests."""
     return Config(
         assistant=AssistantConfig(
             name="Mind",
@@ -367,102 +368,6 @@ def test_mind_forget_routes_to_forget_command(monkeypatch, tmp_path: Path):
     assert called is True
 
 
-def test_mind_memories_status_routes_status_filter(monkeypatch, tmp_path: Path):
-    """The `mind memories --status` command should pass the selected status."""
-    test_config = make_test_config(tmp_path)
-    called = False
-
-    def fake_run_memories_command(config, status=None):
-        nonlocal called
-        assert config == test_config
-        assert status == "auto_extracted"
-        called = True
-        return 0
-
-    monkeypatch.setattr(cli, "load_config", lambda: test_config)
-    monkeypatch.setattr(cli, "run_memories_command", fake_run_memories_command)
-
-    exit_code = cli.main(["memories", "--status", "auto_extracted"])
-
-    assert exit_code == 0
-    assert called is True
-
-
-def test_mind_memory_confirm_routes_to_confirm_command(monkeypatch, tmp_path: Path):
-    """The `mind memory confirm` command should route the memory ID."""
-    test_config = make_test_config(tmp_path)
-    called = False
-
-    def fake_run_memory_confirm_command(config, memory_id):
-        nonlocal called
-        assert config == test_config
-        assert memory_id == 7
-        called = True
-        return 0
-
-    monkeypatch.setattr(cli, "load_config", lambda: test_config)
-    monkeypatch.setattr(
-        cli,
-        "run_memory_confirm_command",
-        fake_run_memory_confirm_command,
-    )
-
-    exit_code = cli.main(["memory", "confirm", "7"])
-
-    assert exit_code == 0
-    assert called is True
-
-
-def test_mind_memory_reject_routes_to_reject_command(monkeypatch, tmp_path: Path):
-    """The `mind memory reject` command should route the memory ID."""
-    test_config = make_test_config(tmp_path)
-    called = False
-
-    def fake_run_memory_reject_command(config, memory_id):
-        nonlocal called
-        assert config == test_config
-        assert memory_id == 8
-        called = True
-        return 0
-
-    monkeypatch.setattr(cli, "load_config", lambda: test_config)
-    monkeypatch.setattr(
-        cli,
-        "run_memory_reject_command",
-        fake_run_memory_reject_command,
-    )
-
-    exit_code = cli.main(["memory", "reject", "8"])
-
-    assert exit_code == 0
-    assert called is True
-
-
-def test_mind_memory_delete_routes_to_delete_command(monkeypatch, tmp_path: Path):
-    """The `mind memory delete` command should route the memory ID."""
-    test_config = make_test_config(tmp_path)
-    called = False
-
-    def fake_run_memory_delete_command(config, memory_id):
-        nonlocal called
-        assert config == test_config
-        assert memory_id == 9
-        called = True
-        return 0
-
-    monkeypatch.setattr(cli, "load_config", lambda: test_config)
-    monkeypatch.setattr(
-        cli,
-        "run_memory_delete_command",
-        fake_run_memory_delete_command,
-    )
-
-    exit_code = cli.main(["memory", "delete", "9"])
-
-    assert exit_code == 0
-    assert called is True
-
-
 def test_mind_agent_routes_to_agent_command(monkeypatch, tmp_path: Path):
     """The `mind agent` command should route the prompt to the agent command."""
     test_config = make_test_config(tmp_path)
@@ -653,6 +558,143 @@ def test_run_agent_command_delegates_to_tool_enabled_ask(monkeypatch, tmp_path: 
 
     assert exit_code == 0
     assert called is True
+
+
+def test_mind_memories_routes_status_filter(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memories_command(config, status=None):
+        nonlocal called
+        assert config == test_config
+        assert status == "auto_extracted"
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_memories_command", fake_run_memories_command)
+
+    exit_code = cli.main(["memories", "--status", "auto_extracted"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_confirm_routes_to_confirm_command(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_confirm_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 7
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_memory_confirm_command", fake_run_memory_confirm_command)
+
+    exit_code = cli.main(["memory", "confirm", "7"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_reject_routes_to_reject_command(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_reject_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 8
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_memory_reject_command", fake_run_memory_reject_command)
+
+    exit_code = cli.main(["memory", "reject", "8"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_delete_routes_to_delete_command(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_delete_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 9
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_memory_delete_command", fake_run_memory_delete_command)
+
+    exit_code = cli.main(["memory", "delete", "9"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_backfill_routes_to_backfill_command(monkeypatch, tmp_path: Path):
+    """The `mind memory backfill` command should route to the backfill command."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_backfill_command(config):
+        nonlocal called
+        assert config == test_config
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(
+        cli,
+        "run_memory_backfill_command",
+        fake_run_memory_backfill_command,
+    )
+
+    exit_code = cli.main(["memory", "backfill"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_run_memory_backfill_command_prints_summary(monkeypatch, tmp_path: Path, capsys):
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        commands,
+        "backfill_embeddings",
+        lambda config: commands.BackfillResult(
+            model="nomic-embed-text",
+            total_missing=2,
+            succeeded=1,
+            failed=1,
+            errors=[
+                commands.BackfillError(
+                    memory_id=2,
+                    message="RuntimeError: embedding failed",
+                )
+            ],
+        ),
+    )
+
+    exit_code = commands.run_memory_backfill_command(test_config)
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Memory embedding backfill" in captured.out
+    assert "Model: nomic-embed-text" in captured.out
+    assert "Missing embeddings: 2" in captured.out
+    assert "Failed memory 2: RuntimeError: embedding failed" in captured.out
+    assert "Succeeded: 1" in captured.out
+    assert "Failed: 1" in captured.out
 
 
 def test_run_runs_command_lists_saved_agent_runs(tmp_path: Path, capsys):
