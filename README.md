@@ -30,8 +30,15 @@ Implemented:
 - `mind agent --trace <task>`
 - `mind remember <text>`
 - `mind memories`
+- `mind memories --status <confirmed|auto_extracted|rejected|archived>`
 - `mind forget <memory-id>`
+- `mind memory confirm <memory-id>`
+- `mind memory reject <memory-id>`
+- `mind memory delete <memory-id>`
 - `mind tools`
+- `mind runs`
+- `mind run show <run-id>`
+- `mind uncensored <prompt>`
 - Basic assistant identity prompt
 - Config-driven local model settings
 - Workspace-relative file access
@@ -44,6 +51,7 @@ Implemented:
 - Experimental automatic memory extraction during chat
 - Bounded tool-using agent loop
 - Tool-enabled chat history
+- File-based agent run persistence
 - Strict JSON agent protocol parsing
 - One repair attempt for invalid agent protocol output
 - Structured `ToolResult` objects
@@ -176,6 +184,8 @@ require_confirmation = true
 
 For example, `internet.github_zen` is an `external_read` tool. If `allow_external_read = false`, Mind blocks that tool and returns a failed `ToolResult` instead of making the external request.
 
+`world.omens` is also an `external_read` tool. It reads fixed public Earth and space monitoring APIs and accepts an optional `max_items` integer.
+
 `workspace.write_file`, `workspace.append_file`, and `project.devlog` are `local_write` tools. In the default config they are allowed, but they still require confirmation when `require_confirmation = true`.
 
 ## Usage
@@ -264,16 +274,42 @@ List saved memories:
 mind memories
 ```
 
+List memories by review status:
+
+```bash
+mind memories --status auto_extracted
+```
+
 Delete a memory by ID:
 
 ```bash
 mind forget 1
 ```
 
+Review or remove an individual memory:
+
+```bash
+mind memory confirm 1
+mind memory reject 2
+mind memory delete 3
+```
+
 List available tools:
 
 ```bash
 mind tools
+```
+
+List saved agent runs:
+
+```bash
+mind runs
+```
+
+Show a saved agent run:
+
+```bash
+mind run show 20260603-120000-deadbeef
 ```
 
 Mind can run an explicitly configured alternate model:
@@ -371,10 +407,16 @@ Manual memory commands:
 ```bash
 mind remember "User prefers concise explanations."
 mind memories
+mind memories --status auto_extracted
 mind forget 1
+mind memory confirm 1
+mind memory reject 2
+mind memory delete 3
 ```
 
-Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
+Memories are stored with normalized text for deduplication plus metadata for kind, source, review status, confidence, timestamps, and use counts. Valid statuses are `confirmed`, `auto_extracted`, `rejected`, and `archived`. `mind memories` shows all stored memory records with metadata, while prompt injection and semantic retrieval use only active memories with `confirmed` or `auto_extracted` status.
+
+The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. Embedding helpers can store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
 
 During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`, then can be injected into future prompts when `inject_context` is enabled. Query-specific prompts prefer semantic retrieval when embeddings are enabled, and fall back to recent memories if retrieval is unavailable.
 
@@ -439,6 +481,7 @@ memory.list
 codebase.list_files
 codebase.read_file
 internet.github_zen
+world.omens
 project.status
 project.devlog
 ```
@@ -448,6 +491,25 @@ project.devlog
 `project.devlog` appends a dated Markdown entry to `workspace/devlog.md`. It takes a required `summary` string and an optional `next_steps` list of strings, uses the same controlled workspace append boundary as `workspace.append_file`, and requires local-write permission plus confirmation.
 
 The important design rule is that the model does not directly execute arbitrary code. It may request a tool, but Python decides whether that tool exists, whether it is permitted, whether it needs confirmation, and how it runs.
+
+## Agent Run History
+
+Tool-enabled one-shot prompts are saved under the data directory:
+
+```text
+data/runs/<run-id>/
+```
+
+Each saved run contains:
+
+```text
+metadata.json
+prompt.txt
+final.md
+trace.md
+```
+
+Use `mind runs` to list saved runs and `mind run show <run-id>` to inspect the prompt, final answer, trace output, and metadata. When trace mode is disabled, `trace.md` records that no trace was enabled for the run.
 
 ## Confirmation Model
 
@@ -591,6 +653,8 @@ The tests currently cover:
 - Memory metadata storage
 - Memory deduplication
 - Memory deletion
+- Memory review status updates
+- Agent run persistence and inspection commands
 - Memory formatting
 - Memory embedding storage and lookup
 - Memory semantic retrieval ranking

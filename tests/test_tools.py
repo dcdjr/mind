@@ -384,6 +384,45 @@ def test_external_read_tool_is_blocked_when_external_read_is_disabled(tmp_path: 
     )
 
 
+def test_world_omens_is_blocked_when_external_read_is_disabled(tmp_path: Path):
+    """world.omens should use the same external-read permission boundary."""
+    base_config = make_test_config(tmp_path)
+
+    config = Config(
+        assistant=base_config.assistant,
+        paths=base_config.paths,
+        model=base_config.model,
+        memory=base_config.memory,
+        embeddings=base_config.embeddings,
+        context=base_config.context,
+        tools=ToolConfig(
+            allow_external_read=False,
+            allow_local_write=False,
+            allow_external_write=False,
+            allow_dangerous=False,
+            require_confirmation=True,
+        ),
+        project=base_config.project,
+    )
+
+    result = run_tool(config, "world.omens", {})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is False
+    assert "external_read" in result.output
+
+
+def test_world_omens_rejects_invalid_max_items_without_network(tmp_path: Path):
+    """world.omens should validate args before contacting public APIs."""
+    config = make_test_config(tmp_path)
+
+    result = run_tool(config, "world.omens", {"max_items": "many"})
+
+    assert isinstance(result, ToolResult)
+    assert result.success is False
+    assert "max_items must be an integer" in result.output
+
+
 def test_external_read_tool_runs_when_external_read_is_enabled(
     monkeypatch,
     tmp_path: Path,
@@ -469,6 +508,7 @@ def test_existing_read_tools_do_not_require_confirmation():
     assert TOOL_REGISTRY["codebase.list_files"].requires_confirmation is False
     assert TOOL_REGISTRY["codebase.read_file"].requires_confirmation is False
     assert TOOL_REGISTRY["internet.github_zen"].requires_confirmation is False
+    assert TOOL_REGISTRY["world.omens"].requires_confirmation is False
     assert TOOL_REGISTRY["project.status"].requires_confirmation is False
 
 

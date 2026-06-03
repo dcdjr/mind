@@ -4,8 +4,8 @@ import json
 
 import urllib.error
 import urllib.request
-from typing import Any
 from datetime import datetime, timezone
+from typing import Any
 
 from mind.core.config import Config
 
@@ -59,6 +59,12 @@ def tool_world_omens(config: Config, args: dict[str, Any]) -> str:
     - no file writes
     """
     max_items = args.get("max_items", 5)
+
+    if isinstance(max_items, bool) or not isinstance(max_items, int):
+        return "Error: max_items must be an integer."
+
+    if max_items < 1 or max_items > 20:
+        return "Error: max_items must be between 1 and 20."
 
     def fetch_json(url: str, timeout: int = 8):
         """Fetch JSON from a fixed trusted endpoint."""

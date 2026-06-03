@@ -82,6 +82,7 @@ mind/
     loop.py
     protocol.py
     prompts.py
+    runs.py
     trace.py
 
   tools/
@@ -160,6 +161,7 @@ The agent package owns the tool-using agent loop.
 mind/agent/loop.py      bounded agent execution loop
 mind/agent/protocol.py  JSON extraction/parsing from model output
 mind/agent/prompts.py   agent-specific system prompt
+mind/agent/runs.py      file-based agent run persistence
 mind/agent/trace.py     human-readable trace formatting
 ```
 
@@ -176,6 +178,8 @@ or a final answer:
 ```
 
 The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops. It supports one repair attempt for invalid agent JSON and can include prior chat messages when running in tool-enabled chat. Trace output previews long tool results and invalid raw model responses so debugging output remains readable.
+
+Tool-enabled one-shot prompts are persisted as file-based agent runs under `data/runs/<run-id>/`. Each run stores `metadata.json`, `prompt.txt`, `final.md`, and `trace.md`. The CLI can list runs with `mind runs` and inspect one run with `mind run show <run-id>`.
 
 ### `mind/tools/`
 
@@ -202,6 +206,7 @@ memory.list
 codebase.list_files
 codebase.read_file
 internet.github_zen
+world.omens
 project.status
 project.devlog
 ```
@@ -245,12 +250,21 @@ Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory
 
 Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 
+Memory review commands can confirm or reject individual memories without deleting them:
+
+```text
+mind memories --status auto_extracted
+mind memory confirm <memory-id>
+mind memory reject <memory-id>
+mind memory delete <memory-id>
+```
+
 Future memory improvements may include:
 
 ```text
-review workflow
-semantic retrieval over generated embeddings
-usage tracking updates
+embedding backfill command
+usage tracking updates during retrieval
+archive command
 ```
 
 ### `mind/workspace/`

@@ -6,12 +6,10 @@ from mind import __version__
 from mind.core.config import Config
 from mind.memory import (
     add_memory,
-    list_memories,
+    confirm_memory,
     delete_memory,
     list_memories,
     list_memory_records,
-    reject_memory,
-    confirm_memory,
     reject_memory,
 )
 from mind.workspace import ensure_workspace, list_workspace_files

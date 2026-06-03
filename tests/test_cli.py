@@ -2,6 +2,7 @@ from pathlib import Path
 
 import mind.cli.commands as commands
 import mind.cli.parser as cli
+from mind.agent.runs import save_agent_run
 from mind.core.config import (
     AssistantConfig,
     Config,
@@ -366,6 +367,102 @@ def test_mind_forget_routes_to_forget_command(monkeypatch, tmp_path: Path):
     assert called is True
 
 
+def test_mind_memories_status_routes_status_filter(monkeypatch, tmp_path: Path):
+    """The `mind memories --status` command should pass the selected status."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memories_command(config, status=None):
+        nonlocal called
+        assert config == test_config
+        assert status == "auto_extracted"
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_memories_command", fake_run_memories_command)
+
+    exit_code = cli.main(["memories", "--status", "auto_extracted"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_confirm_routes_to_confirm_command(monkeypatch, tmp_path: Path):
+    """The `mind memory confirm` command should route the memory ID."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_confirm_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 7
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(
+        cli,
+        "run_memory_confirm_command",
+        fake_run_memory_confirm_command,
+    )
+
+    exit_code = cli.main(["memory", "confirm", "7"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_reject_routes_to_reject_command(monkeypatch, tmp_path: Path):
+    """The `mind memory reject` command should route the memory ID."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_reject_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 8
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(
+        cli,
+        "run_memory_reject_command",
+        fake_run_memory_reject_command,
+    )
+
+    exit_code = cli.main(["memory", "reject", "8"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_memory_delete_routes_to_delete_command(monkeypatch, tmp_path: Path):
+    """The `mind memory delete` command should route the memory ID."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_delete_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 9
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(
+        cli,
+        "run_memory_delete_command",
+        fake_run_memory_delete_command,
+    )
+
+    exit_code = cli.main(["memory", "delete", "9"])
+
+    assert exit_code == 0
+    assert called is True
+
+
 def test_mind_agent_routes_to_agent_command(monkeypatch, tmp_path: Path):
     """The `mind agent` command should route the prompt to the agent command."""
     test_config = make_test_config(tmp_path)
@@ -403,6 +500,47 @@ def test_mind_tools_routes_to_tools_command(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(cli, "run_tools_command", fake_run_tools_command)
 
     exit_code = cli.main(["tools"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_runs_routes_to_runs_command(monkeypatch, tmp_path: Path):
+    """The `mind runs` command should route to the saved-runs listing."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_runs_command(config):
+        nonlocal called
+        assert config == test_config
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_runs_command", fake_run_runs_command)
+
+    exit_code = cli.main(["runs"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_run_show_routes_to_run_show_command(monkeypatch, tmp_path: Path):
+    """The `mind run show` command should route the run ID."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_run_show_command(config, run_id):
+        nonlocal called
+        assert config == test_config
+        assert run_id == "20260603-120000-deadbeef"
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_run_show_command", fake_run_run_show_command)
+
+    exit_code = cli.main(["run", "show", "20260603-120000-deadbeef"])
 
     assert exit_code == 0
     assert called is True
@@ -516,3 +654,45 @@ def test_run_agent_command_delegates_to_tool_enabled_ask(monkeypatch, tmp_path: 
     assert exit_code == 0
     assert called is True
 
+
+def test_run_runs_command_lists_saved_agent_runs(tmp_path: Path, capsys):
+    """run_runs_command should print saved run IDs and metadata."""
+    test_config = make_test_config(tmp_path)
+    saved_run = save_agent_run(
+        config=test_config,
+        user_prompt="hello",
+        final_answer="answer",
+        trace_output=None,
+        status="completed",
+    )
+
+    exit_code = commands.run_runs_command(test_config)
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert saved_run.run_id in captured.out
+    assert "Status: completed" in captured.out
+    assert "Model: ollama / gemma4:e4b" in captured.out
+
+
+def test_run_run_show_command_prints_saved_agent_run(tmp_path: Path, capsys):
+    """run_run_show_command should print metadata, prompt, answer, and trace."""
+    test_config = make_test_config(tmp_path)
+    saved_run = save_agent_run(
+        config=test_config,
+        user_prompt="hello",
+        final_answer="answer",
+        trace_output="trace details\n",
+        status="completed",
+    )
+
+    exit_code = commands.run_run_show_command(test_config, saved_run.run_id)
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert f"Agent run: {saved_run.run_id}" in captured.out
+    assert "Prompt:\nhello" in captured.out
+    assert "Final answer:\nanswer" in captured.out
+    assert "Trace:\ntrace details" in captured.out

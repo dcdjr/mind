@@ -452,3 +452,10 @@ def test_reject_memory_excludes_memory_from_active_list(tmp_path: Path):
 
     rejected = list_memory_records(config, status="rejected")
     assert rejected[0].text == "Reject me."
+
+
+def test_add_memory_rejects_invalid_status(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    with pytest.raises(ValueError, match="Invalid memory status"):
+        add_memory(config, "Bad memory.", status="banana")

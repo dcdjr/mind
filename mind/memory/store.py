@@ -21,7 +21,7 @@ VALID_MEMORY_STATUSES = {
 class MemoryRecord:
     """A full memory row used by review/listing commands."""
 
-    id: str
+    id: int
     text: str
     kind: str
     source: str
@@ -161,6 +161,11 @@ def add_memory(
     if not clean_text:
         return False
 
+    clean_status = status.strip()
+
+    if clean_status not in VALID_MEMORY_STATUSES:
+        raise ValueError(f"Invalid memory status: {status!r}.")
+
     normalized_text = _normalize_memory_text(clean_text)
     now = datetime.now(timezone.utc).isoformat()
 
@@ -189,7 +194,7 @@ def add_memory(
                 normalized_text,
                 kind,
                 source,
-                status,
+                clean_status,
                 confidence,
                 now,
                 now,
