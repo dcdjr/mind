@@ -254,12 +254,13 @@ Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory
 
 Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 
-Memory review commands can confirm or reject individual memories without deleting them:
+Memory review commands can confirm, reject, or archive individual memories without deleting them:
 
 ```text
 mind memories --status auto_extracted
 mind memory confirm <memory-id>
 mind memory reject <memory-id>
+mind memory archive <memory-id>
 mind memory delete <memory-id>
 mind memory backfill
 ```
@@ -268,7 +269,6 @@ Future memory improvements may include:
 
 ```text
 usage tracking updates during retrieval
-archive command
 ```
 
 ### `mind/workspace/`
@@ -359,10 +359,9 @@ Before high-impact integrations, the foundation should be strengthened in this o
 
 ```text
 1. context integration for semantic memory retrieval
-2. archive command for reviewed memories
-3. mission/run history
-4. controlled test runner with explicit local-execute permission
-5. model provider abstraction
+2. mission/run history
+3. controlled test runner with explicit local-execute permission
+4. model provider abstraction
 ```
 
 ## Long-Term Direction

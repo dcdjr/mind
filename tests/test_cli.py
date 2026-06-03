@@ -738,3 +738,53 @@ def test_run_run_show_command_prints_saved_agent_run(tmp_path: Path, capsys):
     assert "Prompt:\nhello" in captured.out
     assert "Final answer:\nanswer" in captured.out
     assert "Trace:\ntrace details" in captured.out
+
+
+def test_mind_memory_archive_routes_to_archive_command(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_memory_archive_command(config, memory_id):
+        nonlocal called
+        assert config == test_config
+        assert memory_id == 10
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(
+        cli,
+        "run_memory_archive_command",
+        fake_run_memory_archive_command,
+    )
+
+    exit_code = cli.main(["memory", "archive", "10"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_run_memory_archive_command_prints_archived_message(monkeypatch, tmp_path: Path, capsys):
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(commands, "archive_memory", lambda config, memory_id: True)
+
+    exit_code = commands.run_memory_archive_command(test_config, 1)
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Memory archived." in captured.out
+
+
+def test_run_memory_archive_command_prints_missing_memory(monkeypatch, tmp_path: Path, capsys):
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(commands, "archive_memory", lambda config, memory_id: False)
+
+    exit_code = commands.run_memory_archive_command(test_config, 99)
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "No memory found with ID 99." in captured.out

@@ -34,6 +34,7 @@ Implemented:
 - `mind forget <memory-id>`
 - `mind memory confirm <memory-id>`
 - `mind memory reject <memory-id>`
+- `mind memory archive <memory-id>`
 - `mind memory delete <memory-id>`
 - `mind memory backfill`
 - `mind tools`
@@ -294,6 +295,7 @@ Review, backfill, or remove memory data:
 ```bash
 mind memory confirm 1
 mind memory reject 2
+mind memory archive 3
 mind memory delete 3
 mind memory backfill
 ```
@@ -415,6 +417,7 @@ mind memories --status auto_extracted
 mind forget 1
 mind memory confirm 1
 mind memory reject 2
+mind memory archive 3
 mind memory delete 3
 ```
 
@@ -711,10 +714,9 @@ Near-term next steps:
 
 ```text
 1. Wire semantic memory retrieval into context building.
-2. Add an archive command for reviewed memories.
-3. Add mission/run history.
-4. Add a controlled test-runner tool with explicit local-execute permission.
-5. Add model provider abstraction.
+2. Add mission/run history.
+3. Add a controlled test-runner tool with explicit local-execute permission.
+4. Add model provider abstraction.
 ```
 
 ## Design Goals

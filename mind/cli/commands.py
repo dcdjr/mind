@@ -14,6 +14,7 @@ from mind.memory import (
     BackfillError,
     BackfillResult,
     add_memory,
+    archive_memory,
     backfill_embeddings,
     confirm_memory,
     delete_memory,
@@ -357,6 +358,7 @@ def run_memories_command(config: Config, status: str | None = None) -> int:
 
     return 0
 
+
 def run_forget_command(config: Config, memory_id: int) -> int:
     """Deletes a memory in Mind's memory database by id."""
     deleted = delete_memory(config, memory_id)
@@ -610,4 +612,16 @@ def run_memory_backfill_command(config: Config) -> int:
     print(f"Succeeded: {result.succeeded}")
     print(f"Failed: {result.failed}")
 
+    return 0
+
+
+def run_memory_archive_command(config: Config, memory_id: int) -> int:
+    """Archive a memory without deleting it."""
+    updated = archive_memory(config, memory_id)
+
+    if not updated:
+        print(f"No memory found with ID {memory_id}.")
+        return 0
+
+    print("Memory archived.")
     return 0

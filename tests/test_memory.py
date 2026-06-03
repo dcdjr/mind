@@ -15,6 +15,7 @@ from mind.core.config import (
 )
 from mind.memory import (
     add_memory,
+    archive_memory,
     confirm_memory,
     delete_memory,
     format_memories_for_prompt,
@@ -460,3 +461,19 @@ def test_add_memory_rejects_invalid_status(tmp_path: Path):
 
     with pytest.raises(ValueError, match="Invalid memory status"):
         add_memory(config, "Bad memory.", status="banana")
+
+
+def test_archive_memory_excludes_memory_from_active_list(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "Keep me.")
+    add_memory(config, "Archive me.")
+
+    assert archive_memory(config, 2) is True
+
+    assert list_memories(config) == [(1, "Keep me.")]
+
+    archived = list_memory_records(config, status="archived")
+    assert len(archived) == 1
+    assert archived[0].text == "Archive me."
+    assert archived[0].status == "archived"

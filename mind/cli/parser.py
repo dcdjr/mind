@@ -12,6 +12,7 @@ from mind.cli.commands import (
     run_home_command,
     run_inspect_command,
     run_memories_command,
+    run_memory_archive_command,
     run_memory_backfill_command,
     run_memory_confirm_command,
     run_memory_delete_command,
@@ -149,6 +150,16 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         help="The ID of the memory to reject.",
     )
 
+    memory_archive_parser = memory_subparsers.add_parser(
+        "archive",
+        help="Mark a memory as archived.",
+    )
+    memory_archive_parser.add_argument(
+        "memory_id",
+        type=int,
+        help="The ID of the memory to archive.",
+    )
+
     memory_delete_parser = memory_subparsers.add_parser(
         "delete",
         help="Delete a memory permanently.",
@@ -255,6 +266,9 @@ def main(argv: list[str] | None = None) -> int:
         return run_forget_command(config, args.memory_id)
 
     if args.command == "memory":
+        if args.memory_command == "archive":
+            return run_memory_archive_command(config, args.memory_id)
+
         if args.memory_command == "confirm":
             return run_memory_confirm_command(config, args.memory_id)
 
@@ -268,7 +282,8 @@ def main(argv: list[str] | None = None) -> int:
             return run_memory_backfill_command(config)
 
         parser.error(
-            "memory requires a subcommand, such as `confirm`, `reject`, `delete`, or `backfill`."
+            "memory requires a subcommand, such as `confirm`, `reject`, "
+            "`archive`, `delete`, or `backfill`."
         )
 
     if args.command == "agent":

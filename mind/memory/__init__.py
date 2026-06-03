@@ -16,6 +16,7 @@ from mind.memory.store import (
     MemoryRecord,
     VALID_MEMORY_STATUSES,
     add_memory,
+    archive_memory,
     confirm_memory,
     delete_memory,
     format_memories_for_prompt,
@@ -33,6 +34,7 @@ from mind.memory.store import (
 
 __all__ = [
     "add_memory",
+    "archive_memory",
     "delete_memory",
     "format_memories_for_prompt",
     "get_memory_embedding",

@@ -554,3 +554,8 @@ def confirm_memory(config: Config, memory_id: int) -> bool:
 def reject_memory(config: Config, memory_id: int) -> bool:
     """Mark a memory as rejected without deleting it."""
     return update_memory_status(config, memory_id, "rejected")
+
+
+def archive_memory(config: Config, memory_id: int) -> bool:
+    """Mark a memory as archived without deleting it."""
+    return update_memory_status(config, memory_id, "archived")
