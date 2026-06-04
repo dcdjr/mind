@@ -25,5 +25,5 @@ def test_load_config_reads_basic_settings():
     assert config.tools.allow_dangerous is False
     assert config.tools.require_confirmation is True
     assert config.model.cloud == "gpt-oss:120b-cloud"
-    assert config.model.uncensored == "dolphin3:8b"
+    assert config.model.uncensored == "dolphin-llama3:8b"
     assert config.model.small == "qwen2.5:1.5b"

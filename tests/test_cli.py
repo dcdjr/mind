@@ -13,6 +13,7 @@ from mind.core.config import (
     PathConfig,
     ToolConfig,
 )
+from mind.memory import BackfillError, BackfillResult
 
 
 def make_test_config(tmp_path: Path) -> Config:
@@ -251,12 +252,19 @@ def test_run_ask_command_uses_uncensored_model(monkeypatch, tmp_path: Path, caps
     test_config = make_test_config(tmp_path)
     called = False
 
-    def fake_ask_once(config, prompt, file_paths=None, model=None):
+    def fake_ask_once(
+        config,
+        prompt,
+        file_paths=None,
+        model=None,
+        uncensored=False,
+    ):
         nonlocal called
         assert config == test_config
         assert prompt == "hello"
         assert file_paths is None
         assert model == "dolphin3:8b"
+        assert uncensored is True
         called = True
         return "uncensored answer"
 
@@ -805,13 +813,13 @@ def test_run_memory_backfill_command_prints_summary(monkeypatch, tmp_path: Path,
     monkeypatch.setattr(
         commands,
         "backfill_embeddings",
-        lambda config: commands.BackfillResult(
+        lambda config: BackfillResult(
             model="nomic-embed-text",
             total_missing=2,
             succeeded=1,
             failed=1,
             errors=[
-                commands.BackfillError(
+                BackfillError(
                     memory_id=2,
                     message="RuntimeError: embedding failed",
                 )

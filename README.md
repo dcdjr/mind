@@ -126,7 +126,7 @@ provider = "ollama"
 base_url = "http://localhost:11434"
 default = "qwen3-coder:30b"
 cloud = "gpt-oss:120b-cloud"
-uncensored = "dolphin3:8b"
+uncensored = "dolphin-llama3:8b"
 small = "qwen2.5:1.5b"
 
 [memory]

@@ -12,6 +12,7 @@ def ask_once(
     prompt: str,
     file_paths: list[Path] | None = None,
     model: str | None = None,
+    uncensored: bool = False,
 ) -> str:
     """Run one prompt through Mind with optional workspace and memory context."""
     context = build_context(config, file_paths, query=prompt)
@@ -22,4 +23,5 @@ def ask_once(
         workspace_context=context.workspace_context,
         memory_context=context.memory_context,
         model=model,
+        uncensored=uncensored,
     )

@@ -3,8 +3,9 @@ from __future__ import annotations
 from ollama import Client
 
 from mind.core.config import Config
-from mind.core.prompt import build_messages
+from mind.core.prompt import build_messages, build_system_prompt
 from mind.core.router import route, resolve_model
+from mind.core.uncensored_prompt import build_uncensored_system_prompt
 
 
 def complete(
@@ -30,13 +31,26 @@ def ask(
     workspace_context: str | None = None,
     memory_context: str | None = None,
     model: str | None = None,
+    uncensored: bool = False,
 ) -> str:
     """
     Send a single prompt to the configured model.
 
     Prompts with local context stay on the default model for now.
     """
-    messages = build_messages(config, prompt, workspace_context, memory_context)
+
+    if uncensored:
+        system_prompt = (
+            build_system_prompt(config, workspace_context, memory_context)
+            + "\n\n"
+            + build_uncensored_system_prompt()
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+    else:
+        messages = build_messages(config, prompt, workspace_context, memory_context)
 
     if model:
         return complete(config, messages, model=model)

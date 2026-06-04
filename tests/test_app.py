@@ -67,11 +67,19 @@ def test_ask_once_builds_context_and_calls_llm(monkeypatch, tmp_path: Path):
             workspace_context="FILE: notes.txt\n---\nWorkspace notes.",
         )
 
-    def fake_ask(config, prompt, workspace_context=None, memory_context=None, model=None):
+    def fake_ask(
+        config,
+        prompt,
+        workspace_context=None,
+        memory_context=None,
+        model=None,
+        uncensored=False,
+    ):
         assert config == test_config
         assert prompt == "summarize"
         assert workspace_context == "FILE: notes.txt\n---\nWorkspace notes."
         assert memory_context == "Saved memory context."
+        assert uncensored is False
 
         return "fake response"
 
@@ -97,11 +105,19 @@ def test_ask_once_handles_no_file_paths(monkeypatch, tmp_path: Path):
             workspace_context=None,
         )
 
-    def fake_ask(config, prompt, workspace_context=None, memory_context=None, model=None):
+    def fake_ask(
+        config,
+        prompt,
+        workspace_context=None,
+        memory_context=None,
+        model=None,
+        uncensored=False,
+    ):
         assert config == test_config
         assert prompt == "hello"
         assert workspace_context is None
         assert memory_context is None
+        assert uncensored is False
 
         return "fake response"
 

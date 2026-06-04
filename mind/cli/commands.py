@@ -11,8 +11,6 @@ from mind.agent import (
 from mind.core.config import Config
 from mind.core.diagnostics import is_ollama_running
 from mind.memory import (
-    BackfillError,
-    BackfillResult,
     add_memory,
     archive_memory,
     backfill_embeddings,
@@ -420,8 +418,8 @@ def run_ask_command(
         return 1
 
     file_paths = [Path(file) for file in files] if files else None
-    if model:
-        response = ask_once(config, prompt, file_paths, model=model)
+    if uncensored:
+        response = ask_once(config, prompt, file_paths, model=model, uncensored=True)
     else:
         response = ask_once(config, prompt, file_paths)
     print(response)
@@ -579,6 +577,7 @@ def run_uncensored_command(config: Config, user_prompt: str) -> int:
         config,
         user_prompt,
         model=config.model.uncensored,
+        uncensored=True,
     )
 
     print(response)
