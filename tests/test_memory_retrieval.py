@@ -155,6 +155,33 @@ def test_retrieve_relevant_memories_respects_limit(monkeypatch, tmp_path: Path):
     ]
 
 
+def test_retrieve_relevant_memories_filters_below_minimum_similarity(
+    monkeypatch,
+    tmp_path: Path,
+):
+    config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(retrieval, "embed_text", lambda config, query: [1, 0])
+    monkeypatch.setattr(
+        retrieval,
+        "list_memory_embeddings",
+        lambda config, model: [
+            (1, "strong match", [1, 0]),
+            (2, "weak match", [0, 1]),
+            (3, "opposite match", [-1, 0]),
+        ],
+    )
+
+    memories = retrieval.retrieve_relevant_memories(
+        config,
+        "query",
+        limit=3,
+        min_similarity=0.5,
+    )
+
+    assert memories == [(1, "strong match")]
+
+
 def test_retrieve_relevant_memories_short_circuits_for_non_positive_limit(
     monkeypatch,
     tmp_path: Path,

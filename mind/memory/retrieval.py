@@ -64,6 +64,7 @@ def retrieve_relevant_memories(
     config: Config,
     query: str,
     limit: int,
+    min_similarity: float = -1.0,
 ) -> list[tuple[int, str]]:
     """
     Retrieve the most semantically relevant memories for a query.
@@ -90,7 +91,13 @@ def retrieve_relevant_memories(
         limit,
     )
 
+    relevant_memories = [
+        memory
+        for memory in ranked_memories
+        if memory[2] >= min_similarity
+    ]
+
     return [
         (memory_id, memory_text)
-        for memory_id, memory_text, _score in ranked_memories
+        for memory_id, memory_text, _score in relevant_memories
     ]
