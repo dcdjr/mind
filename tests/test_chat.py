@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import mind.runtime.chat as chat
@@ -147,9 +148,9 @@ def test_maybe_extract_and_store_memories_saves_extracted_memories(
     monkeypatch,
     tmp_path: Path,
 ):
-    """Automatic memory extraction should save each extracted memory."""
+    """Automatic memory extraction should save and index each new memory."""
     test_config = make_test_config(tmp_path)
-    stored = []
+    calls = []
 
     monkeypatch.setattr(
         chat,
@@ -158,9 +159,15 @@ def test_maybe_extract_and_store_memories_saves_extracted_memories(
     )
 
     def fake_add_memory(config, text, **kwargs):
-        stored.append((text, kwargs))
+        calls.append(("add", text, kwargs))
+        return True
 
     monkeypatch.setattr(chat, "add_memory", fake_add_memory)
+    monkeypatch.setattr(
+        chat,
+        "index_memory",
+        lambda config, text: calls.append(("index", text)) or True,
+    )
 
     chat.maybe_extract_and_store_memories(
         test_config,
@@ -168,8 +175,9 @@ def test_maybe_extract_and_store_memories_saves_extracted_memories(
         "Got it.",
     )
 
-    assert stored == [
+    assert calls == [
         (
+            "add",
             "User wants Mind to stay local-first.",
             {
                 "kind": "general",
@@ -177,7 +185,8 @@ def test_maybe_extract_and_store_memories_saves_extracted_memories(
                 "status": "auto_extracted",
                 "confidence": 0.6,
             },
-        )
+        ),
+        ("index", "User wants Mind to stay local-first."),
     ]
 
 
@@ -221,9 +230,9 @@ def test_maybe_extract_and_store_memories_skips_duplicate_memories(
     monkeypatch,
     tmp_path: Path,
 ):
-    """Automatic memory extraction should not store an extracted memory that already exists."""
+    """Automatic memory extraction should not index duplicate memories."""
     test_config = make_test_config(tmp_path)
-    stored = []
+    index_called = False
 
     monkeypatch.setattr(
         chat,
@@ -231,16 +240,14 @@ def test_maybe_extract_and_store_memories_skips_duplicate_memories(
         lambda config, user_input, response: ["User wants Mind to stay local-first."],
     )
 
-    monkeypatch.setattr(
-        chat,
-        "memory_exists",
-        lambda config, text: text == "User wants Mind to stay local-first.",
-    )
+    monkeypatch.setattr(chat, "add_memory", lambda config, text, **kwargs: False)
 
-    def fake_add_memory(config, text):
-        stored.append(text)
+    def fake_index_memory(config, text):
+        nonlocal index_called
+        index_called = True
+        return True
 
-    monkeypatch.setattr(chat, "add_memory", fake_add_memory)
+    monkeypatch.setattr(chat, "index_memory", fake_index_memory)
 
     chat.maybe_extract_and_store_memories(
         test_config,
@@ -248,7 +255,73 @@ def test_maybe_extract_and_store_memories_skips_duplicate_memories(
         "Got it.",
     )
 
-    assert stored == []
+    assert index_called is False
+
+
+def test_maybe_extract_and_store_memories_skips_indexing_when_embeddings_disabled(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Automatic extraction should still save memories when embeddings are disabled."""
+    base_config = make_test_config(tmp_path)
+    test_config = replace(
+        base_config,
+        embeddings=replace(base_config.embeddings, enabled=False),
+    )
+    added = []
+    index_called = False
+
+    monkeypatch.setattr(
+        chat,
+        "extract_memories",
+        lambda config, user_input, response: ["User wants Mind to stay local-first."],
+    )
+    monkeypatch.setattr(
+        chat,
+        "add_memory",
+        lambda config, text, **kwargs: added.append(text) or True,
+    )
+
+    def fake_index_memory(config, text):
+        nonlocal index_called
+        index_called = True
+        return True
+
+    monkeypatch.setattr(chat, "index_memory", fake_index_memory)
+
+    chat.maybe_extract_and_store_memories(test_config, "Remember this.", "Got it.")
+
+    assert added == ["User wants Mind to stay local-first."]
+    assert index_called is False
+
+
+def test_maybe_extract_and_store_memories_ignores_indexing_failure(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """An indexing provider failure should not escape into the chat loop."""
+    test_config = make_test_config(tmp_path)
+    added = []
+
+    monkeypatch.setattr(
+        chat,
+        "extract_memories",
+        lambda config, user_input, response: ["User wants Mind to stay local-first."],
+    )
+    monkeypatch.setattr(
+        chat,
+        "add_memory",
+        lambda config, text, **kwargs: added.append(text) or True,
+    )
+
+    def broken_index_memory(config, text):
+        raise RuntimeError("embedding unavailable")
+
+    monkeypatch.setattr(chat, "index_memory", broken_index_memory)
+
+    chat.maybe_extract_and_store_memories(test_config, "Remember this.", "Got it.")
+
+    assert added == ["User wants Mind to stay local-first."]
 
 
 def test_run_chat_uses_agent_when_tools_enabled(capsys, monkeypatch, tmp_path: Path):

@@ -5,7 +5,7 @@ from mind.core.config import Config
 from mind.core.context import build_context
 from mind.core.llm import complete
 from mind.core.prompt import build_initial_chat_messages, build_system_prompt
-from mind.memory import add_memory, extract_memories, memory_exists
+from mind.memory import add_memory, extract_memories, index_memory
 from mind.runtime.confirmation import confirm_tool_run
 
 
@@ -48,15 +48,24 @@ def maybe_extract_and_store_memories(
         return
 
     for memory in memories:
-        if not memory_exists(config, memory):
-            add_memory(
-                config,
-                memory,
-                kind="general",
-                source="chat_auto",
-                status="auto_extracted",
-                confidence=0.6,
-            )
+        added = add_memory(
+            config,
+            memory,
+            kind="general",
+            source="chat_auto",
+            status="auto_extracted",
+            confidence=0.6,
+        )
+
+        if not added or not config.embeddings.enabled:
+            continue
+
+        try:
+            index_memory(config, memory)
+        except Exception:
+            # Indexing is derived, recoverable data. Never break chat because
+            # embedding generation or storage failed.
+            continue
 
 
 def _strip_trace_for_history(response: str) -> str:
