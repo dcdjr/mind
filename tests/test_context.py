@@ -242,3 +242,22 @@ def test_build_workspace_context_truncates_when_context_is_too_large(tmp_path: P
     assert context.workspace_context is not None
     assert len(context.workspace_context) <= test_config.context.max_workspace_chars
     assert "[Workspace context truncated]" in context.workspace_context
+
+
+def test_build_memory_context_marks_semantic_memories_used(monkeypatch, tmp_path: Path):
+    base_config = make_test_config(tmp_path)
+
+    def fake_retrieve_relevant_memories(
+        config: Config,
+        query: str,
+        limit: int
+    ) -> list[tuple[int, str]]:
+        return [(2, "Relevant memory.")]
+
+    monkeypatch.setattr(
+        context_builder,
+        "retrieve_relevant_memories",
+        fake_retrieve_relevant_memories,
+    )
+
+    assert 

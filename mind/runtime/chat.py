@@ -78,6 +78,7 @@ def run_chat(
     config: Config,
     tools: bool = False,
     trace: bool = False,
+    model: str | None = None,
 ) -> None:
     """Run an interactive terminal chat session with optional tool use."""
     context = build_context(config)
@@ -114,13 +115,23 @@ def run_chat(
             break
 
         if tools:
-            response = run_agent(
-                config,
-                user_input,
-                trace=trace,
-                prior_messages=agent_history,
-                confirm=confirm_tool_run,
-            )
+            if model:
+                response = run_agent(
+                    config,
+                    user_input,
+                    trace=trace,
+                    prior_messages=agent_history,
+                    confirm=confirm_tool_run,
+                    model=model,
+                )
+            else:
+                response = run_agent(
+                    config,
+                    user_input,
+                    trace=trace,
+                    prior_messages=agent_history,
+                    confirm=confirm_tool_run,
+                )
             history_response = _strip_trace_for_history(response)
 
             agent_history.append(
@@ -152,7 +163,10 @@ def run_chat(
             }
         )
 
-        response = complete(config, messages)
+        if model:
+            response = complete(config, messages, model=model)
+        else:
+            response = complete(config, messages)
 
         messages.append(
             {
@@ -166,4 +180,3 @@ def run_chat(
         print()
 
         maybe_extract_and_store_memories(config, user_input, response)
-

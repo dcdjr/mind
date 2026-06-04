@@ -28,6 +28,7 @@ from mind.memory import (
     memory_exists,
     reject_memory,
     store_memory_embedding,
+    update_memories_after_use,
 )
 
 
@@ -477,3 +478,54 @@ def test_archive_memory_excludes_memory_from_active_list(tmp_path: Path):
     assert len(archived) == 1
     assert archived[0].text == "Archive me."
     assert archived[0].status == "archived"
+
+
+def test_mark_memories_used_updates_usage_metadata(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "Hello.")
+    add_memory(config, "How are you.")
+    
+    # The "Hello." memory is used here
+    memory = [list_memories(config)[0]]
+
+    update_memories_after_use(config, memory)
+
+    with sqlite3.connect(config.paths.database) as conn:
+        rows = conn.execute(
+            """
+            SELECT use_count, last_used_at
+            FROM memories
+            """
+        ).fetchall()
+    
+    assert rows[0][0] == 1
+    assert rows[0][1] is not None
+    assert rows[1][0] == 0
+    assert rows[1][1] is None
+
+
+def test_mark_memories_used_ignores_inactive_memories(tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "plz don't update archived", status="archived")
+    add_memory(config, "plz do not update rejected", status="rejected")
+    add_memory(config, "plz update", status="confirmed")
+
+    memories = list_memories(config)
+
+    update_memories_after_use(config, memories)
+
+    with sqlite3.connect(config.paths.database) as conn:
+        rows = conn.execute(
+            """
+            SELECT use_count, last_used_at
+            FROM memories
+            WHERE status = 'confirmed'
+            """
+        ).fetchone()
+
+    assert rows[0] == 1
+    assert rows[1] is not None
+    
+    

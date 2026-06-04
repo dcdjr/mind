@@ -73,6 +73,7 @@ def save_agent_run(
     trace_output: str | None,
     status: str,
     error: str | None = None,
+    model: str | None = None,
 ) -> AgentRunPaths:
     """
     Persist one completed agent run to disk.
@@ -89,7 +90,7 @@ def save_agent_run(
         "status": status,
         "started_at": now,
         "finished_at": now,
-        "model": config.model.default,
+        "model": model or config.model.default,
         "provider": config.model.provider,
         "error": error,
     }

@@ -172,6 +172,23 @@ def test_run_agent_returns_final_answer(monkeypatch, tmp_path: Path):
     assert result == "Final answer."
 
 
+def test_run_agent_uses_selected_model(monkeypatch, tmp_path: Path):
+    """run_agent should pass an explicit model selection to each model call."""
+    config = make_test_config(tmp_path)
+    models = []
+
+    def fake_complete(config, messages, model=None):
+        models.append(model)
+        return '{"type": "final", "answer": "Final answer."}'
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent(config, "hello", model="dolphin3:8b")
+
+    assert result == "Final answer."
+    assert models == ["dolphin3:8b"]
+
+
 def test_run_agent_includes_relevant_memory_context(monkeypatch, tmp_path: Path):
     """run_agent should include query-relevant saved memories in its system prompt."""
     config = make_test_config(tmp_path)

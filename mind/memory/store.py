@@ -94,6 +94,38 @@ def _deserialize_embedding(embedding_json: str) -> list[float]:
     return embedding
 
 
+def update_memories_after_use(config: Config, memories: list[tuple[int, str]]) -> int:
+    if not memories:
+        return 0
+
+    init_db(config)
+    rows = 0
+    timestamp = _utc_now_iso()
+    
+    with sqlite3.connect(config.paths.database) as conn:
+        for memory_id, _ in memories: 
+            result = conn.execute(
+                """
+                UPDATE memories
+                SET last_used_at = ?,
+                    updated_at = ?,
+                    use_count = use_count + 1
+                WHERE id = ?
+                  AND (status = 'confirmed' OR status = 'auto_extracted')
+                """, 
+                (
+                    timestamp,
+                    timestamp,
+                    memory_id,
+                ),
+            ).rowcount
+
+            if result:
+                rows += 1
+
+    return rows
+
+
 def format_memories_for_prompt(memories: list[tuple[int, str]]) -> str | None:
     """Format saved memories for inclusion in the system prompt"""
     if not memories:

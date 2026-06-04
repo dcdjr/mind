@@ -378,14 +378,26 @@ def run_ask_command(
     files: list[str] | None,
     tools: bool = False,
     trace: bool = False,
+    uncensored: bool = False,
 ) -> int:
     """Give Mind a single prompt, optionally with tool use enabled."""
+    model = config.model.uncensored if uncensored else None
+
     if tools:
         if files:
             print("Error: --files cannot be used with --tools yet.")
             return 1
 
-        response = run_agent(config, prompt, trace=trace, confirm=confirm_tool_run)
+        if model:
+            response = run_agent(
+                config,
+                prompt,
+                trace=trace,
+                confirm=confirm_tool_run,
+                model=model,
+            )
+        else:
+            response = run_agent(config, prompt, trace=trace, confirm=confirm_tool_run)
         final_answer, trace_output = _split_agent_response_for_persistence(response)
 
         saved_run = save_agent_run(
@@ -394,6 +406,7 @@ def run_ask_command(
             final_answer=final_answer,
             trace_output=trace_output,
             status="completed",
+            model=model,
         )
 
         print(response)
@@ -407,7 +420,10 @@ def run_ask_command(
         return 1
 
     file_paths = [Path(file) for file in files] if files else None
-    response = ask_once(config, prompt, file_paths)
+    if model:
+        response = ask_once(config, prompt, file_paths, model=model)
+    else:
+        response = ask_once(config, prompt, file_paths)
     print(response)
 
     return 0
@@ -417,13 +433,18 @@ def run_chat_command(
     config: Config,
     tools: bool = False,
     trace: bool = False,
+    uncensored: bool = False,
 ) -> int:
     """Run a chat session with Mind, optionally with tool use enabled."""
     if trace and not tools:
         print("Error: --trace can only be used with --tools")
         return 1
 
-    run_chat(config, tools=tools, trace=trace)
+    model = config.model.uncensored if uncensored else None
+    if model:
+        run_chat(config, tools=tools, trace=trace, model=model)
+    else:
+        run_chat(config, tools=tools, trace=trace)
 
     return 0
 

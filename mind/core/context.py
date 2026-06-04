@@ -8,6 +8,7 @@ from mind.memory import (
     format_memories_for_prompt,
     list_memories,
     retrieve_relevant_memories,
+    update_memories_after_use,
 )
 from mind.workspace import read_workspace_file
 
@@ -56,10 +57,13 @@ def build_memory_context(
             relevant_memories = []
 
         if relevant_memories:
+            update_memories_after_use(config, relevant_memories)
             return format_memories_for_prompt(relevant_memories)
 
     memories = list_memories(config)
     recent_memories = memories[-limit:]
+    if recent_memories:
+        update_memories_after_use(config, recent_memories)
 
     return format_memories_for_prompt(recent_memories)
 

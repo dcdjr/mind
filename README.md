@@ -20,10 +20,12 @@ Implemented:
 - `mind inspect`
 - `mind ask <prompt>`
 - `mind ask <prompt> --files <workspace-relative-path> [more-files...]`
+- `mind ask --uncensored <prompt>`
 - `mind ask --tools <prompt>`
 - `mind ask --tools --trace <prompt>`
 - `mind files`
 - `mind chat`
+- `mind chat --uncensored`
 - `mind chat --tools`
 - `mind chat --tools --trace`
 - `mind agent <task>`
@@ -218,6 +220,12 @@ Ask a one-shot question:
 mind ask "What should I work on next?"
 ```
 
+Ask using the configured uncensored model:
+
+```bash
+mind ask --uncensored "What should I work on next?"
+```
+
 Ask using one or more files from the workspace as context:
 
 ```bash
@@ -234,6 +242,12 @@ Start an interactive chat session:
 
 ```bash
 mind chat
+```
+
+Start chat using the configured uncensored model:
+
+```bash
+mind chat --uncensored
 ```
 
 Start chat with tools enabled:

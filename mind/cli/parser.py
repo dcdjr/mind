@@ -73,6 +73,11 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         action="store_true",
         help="Show tool calls and intermediate steps when --tools is enabled.",
     )
+    ask_parser.add_argument(
+        "--uncensored",
+        action="store_true",
+        help="Use Mind's configured uncensored model.",
+    )
 
     subparsers.add_parser(
         "files",
@@ -92,6 +97,11 @@ def build_parser(config: Config) -> argparse.ArgumentParser:
         "--trace",
         action="store_true",
         help="Show tool calls and intermediate steps when --tools is enabled.",
+    )
+    chat_parser.add_argument(
+        "--uncensored",
+        action="store_true",
+        help="Use Mind's configured uncensored model.",
     )
 
     remember_parser = subparsers.add_parser(
@@ -242,6 +252,16 @@ def main(argv: list[str] | None = None) -> int:
         return run_inspect_command(config)
 
     if args.command == "ask":
+        if args.uncensored:
+            return run_ask_command(
+                config,
+                args.prompt,
+                args.files,
+                args.tools,
+                args.trace,
+                uncensored=True,
+            )
+
         return run_ask_command(
             config,
             args.prompt,
@@ -254,6 +274,14 @@ def main(argv: list[str] | None = None) -> int:
         return run_files_command(config)
 
     if args.command == "chat":
+        if args.uncensored:
+            return run_chat_command(
+                config,
+                args.tools,
+                args.trace,
+                uncensored=True,
+            )
+
         return run_chat_command(config, args.tools, args.trace)
 
     if args.command == "remember":

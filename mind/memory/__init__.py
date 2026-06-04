@@ -30,6 +30,7 @@ from mind.memory.store import (
     reject_memory,
     store_memory_embedding,
     update_memory_status,
+    update_memories_after_use,
 )
 
 __all__ = [
@@ -58,4 +59,5 @@ __all__ = [
     "BackfillError",
     "BackfillResult",
     "backfill_embeddings",
+    "update_memories_after_use",
 ]

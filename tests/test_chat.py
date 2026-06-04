@@ -403,3 +403,73 @@ def test_run_chat_without_tools_uses_normal_model_path(capsys, monkeypatch, tmp_
     assert "normal response" in captured.out
     assert complete_calls == [{"role": "user", "content": "hello"}]
 
+
+def test_run_chat_uses_selected_model(capsys, monkeypatch, tmp_path: Path):
+    """Chat should pass an explicit model selection to each model call."""
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        chat,
+        "build_context",
+        lambda config, **kwargs: ContextBundle(
+            memory_context=None,
+            workspace_context=None,
+        ),
+    )
+    monkeypatch.setattr(
+        chat,
+        "build_initial_chat_messages",
+        lambda config, workspace_context=None, memory_context=None: [
+            {"role": "system", "content": "system prompt"}
+        ],
+    )
+
+    models = []
+
+    def fake_complete(config, messages, model=None):
+        models.append(model)
+        return "uncensored response"
+
+    monkeypatch.setattr(chat, "complete", fake_complete)
+    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", lambda *args: None)
+
+    inputs = iter(["hello", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
+
+    chat.run_chat(test_config, model="dolphin3:8b")
+    captured = capsys.readouterr()
+
+    assert "uncensored response" in captured.out
+    assert models == ["dolphin3:8b"]
+
+
+def test_run_chat_with_tools_uses_selected_model(capsys, monkeypatch, tmp_path: Path):
+    """Tool-enabled chat should pass an explicit model selection to the agent."""
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(
+        chat,
+        "build_context",
+        lambda config, **kwargs: ContextBundle(
+            memory_context=None,
+            workspace_context=None,
+        ),
+    )
+
+    models = []
+
+    def fake_run_agent(config, prompt, **kwargs):
+        models.append(kwargs.get("model"))
+        return "uncensored agent response"
+
+    monkeypatch.setattr(chat, "run_agent", fake_run_agent)
+    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", lambda *args: None)
+
+    inputs = iter(["hello", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
+
+    chat.run_chat(test_config, tools=True, model="dolphin3:8b")
+    captured = capsys.readouterr()
+
+    assert "uncensored agent response" in captured.out
+    assert models == ["dolphin3:8b"]

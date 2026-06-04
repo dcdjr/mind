@@ -54,6 +54,7 @@ def run_agent(
     trace: bool = False,
     prior_messages: list[dict[str, str]] | None = None,
     confirm: Callable[[ToolSpec], bool] | None = None,
+    model: str | None = None,
 ) -> str:
     """Run a bounded agent loop with optional prior conversation context."""
     context = build_context(config, query=user_prompt)
@@ -97,7 +98,10 @@ def run_agent(
 
     while tool_steps < max_steps:
         try:
-            raw_response = complete(config, messages)
+            if model:
+                raw_response = complete(config, messages, model=model)
+            else:
+                raw_response = complete(config, messages)
         except Exception as error:
             message = f"Error: Agent model call failed: {type(error).__name__}: {error}."
 

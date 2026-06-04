@@ -30,6 +30,7 @@ def make_test_config(tmp_path: Path) -> Config:
             provider="ollama",
             base_url="http://localhost:11434",
             default="gemma4:e4b",
+            uncensored="dolphin3:8b",
         ),
         memory=MemoryConfig(
             auto_extract=True,
@@ -194,6 +195,33 @@ def test_mind_ask_tools_trace_routes_trace_flag(monkeypatch, tmp_path: Path):
     assert called is True
 
 
+def test_mind_ask_uncensored_routes_uncensored_flag(monkeypatch, tmp_path: Path):
+    """The `mind ask --uncensored` command should select the uncensored model."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_ask_command(
+        config, prompt, files, tools=False, trace=False, uncensored=False
+    ):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "hello"
+        assert files is None
+        assert tools is False
+        assert trace is False
+        assert uncensored is True
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_ask_command", fake_run_ask_command)
+
+    exit_code = cli.main(["ask", "--uncensored", "hello"])
+
+    assert exit_code == 0
+    assert called is True
+
+
 def test_run_ask_command_uses_ask_once_by_default(monkeypatch, tmp_path: Path, capsys):
     """run_ask_command should use the normal ask runtime unless tools are enabled."""
     test_config = make_test_config(tmp_path)
@@ -216,6 +244,36 @@ def test_run_ask_command_uses_ask_once_by_default(monkeypatch, tmp_path: Path, c
     assert exit_code == 0
     assert called is True
     assert "normal answer" in captured.out
+
+
+def test_run_ask_command_uses_uncensored_model(monkeypatch, tmp_path: Path, capsys):
+    """run_ask_command should pass the configured uncensored model to ask_once."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_ask_once(config, prompt, file_paths=None, model=None):
+        nonlocal called
+        assert config == test_config
+        assert prompt == "hello"
+        assert file_paths is None
+        assert model == "dolphin3:8b"
+        called = True
+        return "uncensored answer"
+
+    monkeypatch.setattr(commands, "ask_once", fake_ask_once)
+
+    exit_code = commands.run_ask_command(
+        test_config,
+        "hello",
+        None,
+        uncensored=True,
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert called is True
+    assert "uncensored answer" in captured.out
 
 
 def test_run_ask_command_uses_agent_when_tools_enabled(monkeypatch, tmp_path: Path, capsys):
@@ -247,6 +305,39 @@ def test_run_ask_command_uses_agent_when_tools_enabled(monkeypatch, tmp_path: Pa
     assert exit_code == 0
     assert called is True
     assert "agent answer" in captured.out
+
+
+def test_run_ask_command_uses_uncensored_agent_model(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    """Tool-enabled uncensored ask should select and record the uncensored model."""
+    test_config = make_test_config(tmp_path)
+
+    def fake_run_agent(config, prompt, trace=False, confirm=None, model=None):
+        assert model == "dolphin3:8b"
+        return "agent answer"
+
+    monkeypatch.setattr(commands, "run_agent", fake_run_agent)
+
+    exit_code = commands.run_ask_command(
+        test_config,
+        "hello",
+        None,
+        tools=True,
+        uncensored=True,
+    )
+
+    captured = capsys.readouterr()
+    run_id = captured.out.strip().split("Saved agent run: ")[-1]
+    metadata = commands.read_agent_run_metadata(
+        test_config.paths.database.parent / "runs" / run_id
+    )
+
+    assert exit_code == 0
+    assert metadata is not None
+    assert metadata["model"] == "dolphin3:8b"
 
 
 def test_run_ask_command_rejects_files_with_tools(tmp_path: Path, capsys):
@@ -321,6 +412,29 @@ def test_mind_chat_routes_to_chat_command(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(cli, "run_chat_command", fake_run_chat_command)
 
     exit_code = cli.main(["chat"])
+
+    assert exit_code == 0
+    assert called is True
+
+
+def test_mind_chat_uncensored_routes_uncensored_flag(monkeypatch, tmp_path: Path):
+    """The `mind chat --uncensored` command should select the uncensored model."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_chat_command(config, tools=False, trace=False, uncensored=False):
+        nonlocal called
+        assert config == test_config
+        assert tools is False
+        assert trace is False
+        assert uncensored is True
+        called = True
+        return 0
+
+    monkeypatch.setattr(cli, "load_config", lambda: test_config)
+    monkeypatch.setattr(cli, "run_chat_command", fake_run_chat_command)
+
+    exit_code = cli.main(["chat", "--uncensored"])
 
     assert exit_code == 0
     assert called is True
@@ -531,6 +645,27 @@ def test_run_chat_command_rejects_trace_without_tools(tmp_path: Path, capsys):
 
     assert exit_code == 1
     assert "--trace can only be used with --tools" in captured.out
+
+
+def test_run_chat_command_uses_uncensored_model(monkeypatch, tmp_path: Path):
+    """run_chat_command should select the configured uncensored model."""
+    test_config = make_test_config(tmp_path)
+    called = False
+
+    def fake_run_chat(config, tools=False, trace=False, model=None):
+        nonlocal called
+        assert config == test_config
+        assert tools is False
+        assert trace is False
+        assert model == "dolphin3:8b"
+        called = True
+
+    monkeypatch.setattr(commands, "run_chat", fake_run_chat)
+
+    exit_code = commands.run_chat_command(test_config, uncensored=True)
+
+    assert exit_code == 0
+    assert called is True
 
 
 def test_run_agent_command_delegates_to_tool_enabled_ask(monkeypatch, tmp_path: Path):
