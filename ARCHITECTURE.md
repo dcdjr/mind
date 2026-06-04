@@ -178,7 +178,7 @@ or a final answer:
 {"type": "final", "answer": "<final-answer-text>"}
 ```
 
-The agent loop is bounded by `MAX_AGENT_STEPS` to prevent infinite tool-call loops. It supports one repair attempt for invalid agent JSON and can include prior chat messages when running in tool-enabled chat. Trace output previews long tool results and invalid raw model responses so debugging output remains readable.
+The agent loop separately bounds tool calls, total model calls, and invalid-protocol repair retries. This allows several formatting repairs without permitting retries or future reasoning stages to create an unbounded run. It can include prior chat messages when running in tool-enabled chat. Trace output previews long tool results and invalid raw model responses so debugging output remains readable.
 
 Tool-enabled one-shot prompts are persisted as file-based agent runs under `data/runs/<run-id>/`. Each run stores `metadata.json`, `prompt.txt`, `final.md`, and `trace.md`. The CLI can list runs with `mind runs` and inspect one run with `mind run show <run-id>`.
 

@@ -243,7 +243,7 @@ def test_run_agent_runs_tool_then_returns_final_answer(monkeypatch, tmp_path: Pa
     assert tool_calls == [("workspace.list_files", {}, None)]
 
 
-def test_run_agent_retries_once_after_invalid_json(monkeypatch, tmp_path: Path):
+def test_run_agent_retries_after_invalid_json(monkeypatch, tmp_path: Path):
     config = make_test_config(tmp_path)
 
     responses = iter(
@@ -285,9 +285,50 @@ def test_run_agent_returns_error_after_protocol_retry_fails(monkeypatch, tmp_pat
         lambda config, messages: next(responses),
     )
 
-    result = agent.run_agent(config, "bad model output")
+    result = agent.run_agent(config, "bad model output", max_protocol_repairs=1)
 
     assert "valid JSON object" in result
+
+
+def test_run_agent_allows_multiple_protocol_repairs(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+    responses = iter(
+        [
+            "not json",
+            "still not json",
+            '{"type": "final", "answer": "Recovered after two repairs."}',
+        ]
+    )
+    model_calls = 0
+
+    def fake_complete(config, messages):
+        nonlocal model_calls
+        model_calls += 1
+        return next(responses)
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent(config, "recover", max_protocol_repairs=2)
+
+    assert result == "Recovered after two repairs."
+    assert model_calls == 3
+
+
+def test_run_agent_stops_after_protocol_repair_limit(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+    model_calls = 0
+
+    def fake_complete(config, messages):
+        nonlocal model_calls
+        model_calls += 1
+        return "not json"
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent(config, "bad model output", max_protocol_repairs=2)
+
+    assert "valid JSON object" in result
+    assert model_calls == 3
 
 
 def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
@@ -306,7 +347,7 @@ def test_run_agent_rejects_invalid_tool_name(monkeypatch, tmp_path: Path):
         lambda config, messages: next(responses),
     )
 
-    result = agent.run_agent(config, "bad tool")
+    result = agent.run_agent(config, "bad tool", max_protocol_repairs=1)
 
     assert "valid tool name" in result
 
@@ -327,7 +368,7 @@ def test_run_agent_rejects_invalid_tool_args(monkeypatch, tmp_path: Path):
         lambda config, messages: next(responses),
     )
 
-    result = agent.run_agent(config, "bad args")
+    result = agent.run_agent(config, "bad args", max_protocol_repairs=1)
 
     assert "invalid args" in result
 
@@ -355,6 +396,36 @@ def test_run_agent_stops_after_max_steps(monkeypatch, tmp_path: Path):
     result = agent.run_agent(config, "loop forever", max_steps=2)
 
     assert "maximum number of tool steps" in result
+
+
+def test_run_agent_stops_after_maximum_model_calls(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+    model_calls = 0
+    tool_calls = 0
+
+    def fake_complete(config, messages):
+        nonlocal model_calls
+        model_calls += 1
+        return '{"type": "tool_call", "tool": "workspace.list_files", "args": {}}'
+
+    def fake_run_tool(config, tool_name, args, confirm=None):
+        nonlocal tool_calls
+        tool_calls += 1
+        return ToolResult.success_result(tool_name, "Workspace is empty.")
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+    monkeypatch.setattr(agent, "run_tool", fake_run_tool)
+
+    result = agent.run_agent(
+        config,
+        "loop forever",
+        max_steps=10,
+        max_agent_model_calls=2,
+    )
+
+    assert "maximum number of model calls" in result
+    assert model_calls == 2
+    assert tool_calls == 2
 
 
 def test_run_agent_trace_includes_tool_call(monkeypatch, tmp_path: Path):
@@ -453,7 +524,12 @@ def test_run_agent_trace_includes_parse_failure(monkeypatch, tmp_path: Path):
         lambda config, messages: next(responses),
     )
 
-    result = agent.run_agent(config, "bad model output", trace=True)
+    result = agent.run_agent(
+        config,
+        "bad model output",
+        trace=True,
+        max_protocol_repairs=1,
+    )
 
     assert "Agent trace:" in result
     assert result.count("Action: parse_failure") == 2

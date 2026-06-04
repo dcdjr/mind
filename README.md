@@ -469,7 +469,10 @@ The embedding helper currently supports Ollama and returns one numeric vector fo
 
 ## Agent and Tools
 
-Mind includes a simple bounded agent loop.
+Mind includes a bounded agent loop. Tool calls, total model calls, and invalid
+protocol repairs have separate limits so retries and future reasoning stages
+cannot create an unbounded run. The current defaults allow 10 tool calls, 20
+total model calls, and 3 protocol repair retries.
 
 The agent asks the local model to return one of two JSON response types.
 

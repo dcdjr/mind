@@ -18,6 +18,8 @@ from mind.tools import ToolSpec, run_tool
 
 
 MAX_AGENT_STEPS = 10
+MAX_AGENT_MODEL_CALLS = 20
+MAX_PROTOCOL_REPAIRS = 3
 
 PROTOCOL_REPAIR_MESSAGE = (
     "Your previous response was invalid for Mind's agent protocol.\n\n"
@@ -55,6 +57,8 @@ def run_agent(
     prior_messages: list[dict[str, str]] | None = None,
     confirm: Callable[[ToolSpec], bool] | None = None,
     model: str | None = None,
+    max_protocol_repairs: int = MAX_PROTOCOL_REPAIRS,
+    max_agent_model_calls: int = MAX_AGENT_MODEL_CALLS,
 ) -> str:
     """Run a bounded agent loop with optional prior conversation context."""
     context = build_context(config, query=user_prompt)
@@ -83,10 +87,11 @@ def run_agent(
 
     failed_tool_calls: set[tuple[str, str]] = set()
 
-    # repair_attempted is separate from tool_steps because a protocol repair is
-    # a formatting retry, not a meaningful agent action toward the task.
-    repair_attempted = False
+    # Protocol repairs and model calls are tracked separately from tool steps:
+    # repairs are formatting retries, while model calls bound every inference.
     tool_steps = 0
+    protocol_repairs = 0
+    model_calls = 0
     step_number = 1
 
     def finish(answer: str) -> str:
@@ -97,6 +102,19 @@ def run_agent(
         return format_traced_response(answer, agent_trace)
 
     while tool_steps < max_steps:
+        if model_calls >= max_agent_model_calls:
+            message = (
+                "Error: Agent reached the maximum number of model calls "
+                "without a final answer."
+            )
+
+            if agent_trace is not None:
+                agent_trace.record_error(step_number, message)
+
+            return finish(message)
+
+        model_calls += 1
+
         try:
             if model:
                 raw_response = complete(config, messages, model=model)
@@ -116,8 +134,8 @@ def run_agent(
             if agent_trace is not None:
                 agent_trace.record_parse_failure(step_number, action.raw_output)
 
-            if not repair_attempted:
-                repair_attempted = True
+            if protocol_repairs < max_protocol_repairs:
+                protocol_repairs += 1
 
                 # Keep the bad assistant message in history so the model can
                 # repair exactly the response that failed validation.
