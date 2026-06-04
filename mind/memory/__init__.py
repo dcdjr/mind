@@ -7,6 +7,7 @@ from mind.memory.extractor import (
     extract_memories,
     parse_extracted_memories,
 )
+from mind.memory.indexing import index_memory
 from mind.memory.retrieval import (
     cosine_similarity,
     rank_memory_embeddings,
@@ -48,6 +49,7 @@ __all__ = [
     "memory_exists",
     "store_memory_embedding",
     "extract_memories",
+    "index_memory",
     "parse_extracted_memories",
     "cosine_similarity",
     "rank_memory_embeddings",
