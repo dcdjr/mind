@@ -485,8 +485,7 @@ def test_mark_memories_used_updates_usage_metadata(tmp_path: Path):
 
     add_memory(config, "Hello.")
     add_memory(config, "How are you.")
-    
-    # The "Hello." memory is used here
+
     memory = [list_memories(config)[0]]
 
     update_memories_after_use(config, memory)
@@ -498,7 +497,7 @@ def test_mark_memories_used_updates_usage_metadata(tmp_path: Path):
             FROM memories
             """
         ).fetchall()
-    
+
     assert rows[0][0] == 1
     assert rows[0][1] is not None
     assert rows[1][0] == 0
@@ -512,7 +511,11 @@ def test_mark_memories_used_ignores_inactive_memories(tmp_path: Path):
     add_memory(config, "plz do not update rejected", status="rejected")
     add_memory(config, "plz update", status="confirmed")
 
-    memories = list_memories(config)
+    memories = [
+        (1, "plz don't update archived"),
+        (2, "plz do not update rejected"),
+        (3, "plz update"),
+    ]
 
     update_memories_after_use(config, memories)
 
@@ -521,11 +524,11 @@ def test_mark_memories_used_ignores_inactive_memories(tmp_path: Path):
             """
             SELECT use_count, last_used_at
             FROM memories
-            WHERE status = 'confirmed'
+            ORDER BY id
             """
-        ).fetchone()
+        ).fetchall()
 
-    assert rows[0] == 1
-    assert rows[1] is not None
-    
-    
+    assert rows[0] == (0, None)
+    assert rows[1] == (0, None)
+    assert rows[2][0] == 1
+    assert rows[2][1] is not None

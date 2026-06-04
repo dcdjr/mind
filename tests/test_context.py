@@ -245,12 +245,13 @@ def test_build_workspace_context_truncates_when_context_is_too_large(tmp_path: P
 
 
 def test_build_memory_context_marks_semantic_memories_used(monkeypatch, tmp_path: Path):
-    base_config = make_test_config(tmp_path)
+    test_config = make_test_config(tmp_path)
+    used_memories = []
 
     def fake_retrieve_relevant_memories(
         config: Config,
         query: str,
-        limit: int
+        limit: int,
     ) -> list[tuple[int, str]]:
         return [(2, "Relevant memory.")]
 
@@ -259,5 +260,36 @@ def test_build_memory_context_marks_semantic_memories_used(monkeypatch, tmp_path
         "retrieve_relevant_memories",
         fake_retrieve_relevant_memories,
     )
+    monkeypatch.setattr(
+        context_builder,
+        "update_memories_after_use",
+        lambda config, memories: used_memories.extend(memories),
+    )
 
-    assert 
+    context = context_builder.build_memory_context(test_config, query="planning")
+
+    assert context is not None
+    assert "Relevant memory." in context
+    assert used_memories == [(2, "Relevant memory.")]
+
+
+def test_build_memory_context_marks_recent_memories_used(monkeypatch, tmp_path: Path):
+    test_config = make_test_config(tmp_path)
+    used_memories = []
+
+    monkeypatch.setattr(
+        context_builder,
+        "list_memories",
+        lambda config: [(1, "Recent memory.")],
+    )
+    monkeypatch.setattr(
+        context_builder,
+        "update_memories_after_use",
+        lambda config, memories: used_memories.extend(memories),
+    )
+
+    context = context_builder.build_memory_context(test_config)
+
+    assert context is not None
+    assert "Recent memory." in context
+    assert used_memories == [(1, "Recent memory.")]

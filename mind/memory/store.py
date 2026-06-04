@@ -95,15 +95,16 @@ def _deserialize_embedding(embedding_json: str) -> list[float]:
 
 
 def update_memories_after_use(config: Config, memories: list[tuple[int, str]]) -> int:
+    """Increment usage metadata for active memories included in a prompt."""
     if not memories:
         return 0
 
     init_db(config)
     rows = 0
     timestamp = _utc_now_iso()
-    
+
     with sqlite3.connect(config.paths.database) as conn:
-        for memory_id, _ in memories: 
+        for memory_id, _ in memories:
             result = conn.execute(
                 """
                 UPDATE memories
@@ -112,7 +113,7 @@ def update_memories_after_use(config: Config, memories: list[tuple[int, str]]) -
                     use_count = use_count + 1
                 WHERE id = ?
                   AND (status = 'confirmed' OR status = 'auto_extracted')
-                """, 
+                """,
                 (
                     timestamp,
                     timestamp,
