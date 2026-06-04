@@ -101,11 +101,15 @@ def test_build_context_uses_relevant_memories_when_query_is_available(
         list_called = True
         return [(1, "Recent fallback memory.")]
 
+    def fake_retrieve_relevant_memories(config, query, limit, min_similarity):
+        assert min_similarity == test_config.memory.min_similarity
+        return [(2, f"Relevant to {query} with limit {limit}.")]
+
     monkeypatch.setattr(context_builder, "list_memories", fake_list_memories)
     monkeypatch.setattr(
         context_builder,
         "retrieve_relevant_memories",
-        lambda config, query, limit: [(2, f"Relevant to {query} with limit {limit}.")],
+        fake_retrieve_relevant_memories,
     )
 
     context = context_builder.build_context(test_config, query="planning")
@@ -123,7 +127,7 @@ def test_build_context_falls_back_to_recent_memories_when_retrieval_fails(
     """Memory context should still work if embedding retrieval is unavailable."""
     test_config = make_test_config(tmp_path)
 
-    def broken_retrieve_relevant_memories(config, query, limit):
+    def broken_retrieve_relevant_memories(config, query, limit, min_similarity):
         raise RuntimeError("embedding model unavailable")
 
     monkeypatch.setattr(
@@ -141,6 +145,33 @@ def test_build_context_falls_back_to_recent_memories_when_retrieval_fails(
 
     assert context.memory_context is not None
     assert "Recent fallback memory." in context.memory_context
+
+
+def test_build_context_does_not_fall_back_when_no_memories_clear_threshold(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Successful semantic retrieval should not inject unrelated recent memories."""
+    test_config = make_test_config(tmp_path)
+    list_called = False
+
+    monkeypatch.setattr(
+        context_builder,
+        "retrieve_relevant_memories",
+        lambda config, query, limit, min_similarity: [],
+    )
+
+    def fake_list_memories(config):
+        nonlocal list_called
+        list_called = True
+        return [(1, "Unrelated recent memory.")]
+
+    monkeypatch.setattr(context_builder, "list_memories", fake_list_memories)
+
+    context = context_builder.build_context(test_config, query="planning")
+
+    assert context.memory_context is None
+    assert list_called is False
 
 
 def test_build_context_returns_no_memory_context_when_injection_disabled(
@@ -252,7 +283,9 @@ def test_build_memory_context_marks_semantic_memories_used(monkeypatch, tmp_path
         config: Config,
         query: str,
         limit: int,
+        min_similarity: float,
     ) -> list[tuple[int, str]]:
+        assert min_similarity == test_config.memory.min_similarity
         return [(2, "Relevant memory.")]
 
     monkeypatch.setattr(

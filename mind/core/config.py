@@ -49,6 +49,7 @@ class MemoryConfig:
     auto_extract: bool
     inject_context: bool
     max_relevant_memories: int
+    min_similarity: float = 0.3
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,7 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
             ),
             inject_context=raw["memory"].get("inject_context", True),
             max_relevant_memories=raw["memory"]["max_relevant_memories"],
+            min_similarity=raw["memory"].get("min_similarity", 0.3),
         ),
         embeddings=EmbeddingConfig(
             provider=raw["embeddings"]["provider"],

@@ -126,13 +126,14 @@ provider = "ollama"
 base_url = "http://localhost:11434"
 default = "qwen3-coder:30b"
 cloud = "gpt-oss:120b-cloud"
-uncensored = "dolphin-llama3:8b"
+uncensored = "oroboroslabs/qwen3.5-abliterated-47-4:latest"
 small = "qwen2.5:1.5b"
 
 [memory]
 auto_extract = true
 inject_context = true
 max_relevant_memories = 8
+min_similarity = 0.3
 
 [embeddings]
 provider = "ollama"
@@ -448,7 +449,12 @@ Automatic memory extraction and prompt injection are controlled separately by:
 auto_extract = true
 inject_context = true
 max_relevant_memories = 8
+min_similarity = 0.3
 ```
+
+`min_similarity` prevents semantic retrieval from injecting memories whose cosine
+similarity score is below the configured threshold. If retrieval itself fails,
+Mind falls back to recent memories.
 
 Semantic embedding generation is configured separately:
 

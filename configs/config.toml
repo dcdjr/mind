@@ -11,13 +11,14 @@ provider = "ollama"
 base_url = "http://localhost:11434"
 default = "gemma4:e2b"
 cloud = "gpt-oss:120b-cloud"
-uncensored = "dolphin-llama3:8b"
+uncensored = "oroboroslabs/qwen3.5-abliterated-47-4:latest"
 small = "qwen2.5:1.5b"
 
 [memory]
 auto_extract = true
 inject_context = true
 max_relevant_memories = 8
+min_similarity = 0.3
 
 [embeddings]
 provider = "ollama"

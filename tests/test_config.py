@@ -15,6 +15,7 @@ def test_load_config_reads_basic_settings():
     assert config.model.default == "gemma4:e2b"
     assert config.memory.auto_extract is True
     assert config.memory.inject_context is True
+    assert config.memory.min_similarity == 0.3
     assert config.embeddings.provider == "ollama"
     assert config.embeddings.model == "nomic-embed-text"
     assert config.embeddings.enabled is True
@@ -25,5 +26,5 @@ def test_load_config_reads_basic_settings():
     assert config.tools.allow_dangerous is False
     assert config.tools.require_confirmation is True
     assert config.model.cloud == "gpt-oss:120b-cloud"
-    assert config.model.uncensored == "dolphin-llama3:8b"
+    assert config.model.uncensored == "oroboroslabs/qwen3.5-abliterated-47-4:latest"
     assert config.model.small == "qwen2.5:1.5b"

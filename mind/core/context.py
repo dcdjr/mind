@@ -50,15 +50,20 @@ def build_memory_context(
                 config,
                 query=query,
                 limit=limit,
+                min_similarity=config.memory.min_similarity,
             )
         except Exception:
             # Embeddings are an enhancement, not a hard dependency for chat.
             # If Ollama, the embedding model, or stored vectors fail, fall back.
-            relevant_memories = []
+            pass
+        else:
+            if relevant_memories:
+                update_memories_after_use(config, relevant_memories)
+                return format_memories_for_prompt(relevant_memories)
 
-        if relevant_memories:
-            update_memories_after_use(config, relevant_memories)
-            return format_memories_for_prompt(relevant_memories)
+            # Retrieval succeeded, but no memories cleared the relevance
+            # threshold. Do not replace them with unrelated recent memories.
+            return None
 
     memories = list_memories(config)
     recent_memories = memories[-limit:]
