@@ -44,6 +44,29 @@ def _normalize_memory_text(text: str) -> str:
     return normalized
 
 
+def get_memory_id(config: Config, text: str) -> int | None:
+    """Return the ID of a normalized matching memory, or None."""
+    init_db(config)
+
+    normalized_text = _normalize_memory_text(text)
+
+    with sqlite3.connect(config.paths.database) as conn:
+        memory = conn.execute(
+            """
+            SELECT id
+            FROM memories
+            WHERE normalized_text = ?
+            LIMIT 1
+            """,
+            (normalized_text,),
+        ).fetchone()
+
+    if memory is not None:
+        return memory[0]
+
+    return None
+
+
 def _utc_now_iso() -> str:
     """Return the current UTC time as an ISO-8601 string."""
     return datetime.now(timezone.utc).isoformat()

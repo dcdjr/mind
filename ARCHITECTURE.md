@@ -250,7 +250,7 @@ last_used_at
 use_count
 ```
 
-Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so backfill can run one embedding model at a time. `mind memory backfill` generates vectors for active memories missing the configured model's embedding and records per-memory failures without stopping the batch. Retrieval embeds the query with the same configured model and ranks stored vectors with cosine similarity.
+Embedding vectors are stored separately in `memory_embeddings`, keyed by `memory_id` and `model`, with the vector serialized as JSON. This keeps memory text and semantic retrieval data independently updatable. The storage helpers can resolve normalized memory text to its database ID, upsert vectors for regeneration, return only active memories for retrieval, and use a model-specific missing-embeddings query so backfill can run one embedding model at a time. `mind memory backfill` generates vectors for active memories missing the configured model's embedding and records per-memory failures without stopping the batch. Retrieval embeds the query with the same configured model and ranks stored vectors with cosine similarity.
 
 Manual memories are stored as confirmed, high-confidence memories. Auto-extracted chat memories are stored separately with `source = "chat_auto"`, `status = "auto_extracted"`, and lower confidence so a future review flow can distinguish them.
 

@@ -20,6 +20,7 @@ from mind.memory import (
     delete_memory,
     format_memories_for_prompt,
     get_memory_embedding,
+    get_memory_id,
     init_db,
     list_memories_missing_embeddings,
     list_memory_embeddings,
@@ -269,6 +270,24 @@ def test_memory_exists_returns_false_for_missing_memory(tmp_path: Path):
     add_memory(config, "The project is named Mind.")
 
     assert memory_exists(config, "User prefers concise answers.") is False
+
+
+def test_get_memory_id_returns_normalized_matching_memory_id(tmp_path: Path):
+    """Memory ID lookup should use the same normalization as deduplication."""
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "The project is named Mind.")
+
+    assert get_memory_id(config, "  the   PROJECT is named mind!  ") == 1
+
+
+def test_get_memory_id_returns_none_for_missing_memory(tmp_path: Path):
+    """Memory ID lookup should return None when no normalized match exists."""
+    config = make_test_config(tmp_path)
+
+    add_memory(config, "The project is named Mind.")
+
+    assert get_memory_id(config, "User prefers concise answers.") is None
 
 
 def test_add_memory_deduplicates_normalized_text(tmp_path: Path):
