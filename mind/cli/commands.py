@@ -16,6 +16,7 @@ from mind.memory import (
     backfill_embeddings,
     confirm_memory,
     delete_memory,
+    index_memory,
     list_memories,
     list_memory_records,
     reject_memory,
@@ -320,10 +321,21 @@ def run_inspect_command(config: Config) -> int:
 def run_remember_command(config: Config, text: str) -> int:
     """Adds a memory to Mind's memory database."""
     add_result = add_memory(config, text)
-    if add_result:
-        print("Memory saved.")
-    else:
+
+    if not add_result:
         print("Memory already exists.")
+        return 0
+
+    print("Memory saved.")
+
+    if config.embeddings.enabled:
+        try:
+            indexed = index_memory(config, text)
+        except Exception as error:
+            print(f"Warning: Memory embedding failed: {type(error).__name__}: {error}")
+        else:
+            if not indexed:
+                print("Warning: Memory was saved but could not be indexed.")
 
     return 0
 

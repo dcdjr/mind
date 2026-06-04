@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import mind.cli.commands as commands
@@ -467,6 +468,131 @@ def test_mind_remember_routes_to_remember_command(monkeypatch, tmp_path: Path):
 
     assert exit_code == 0
     assert called is True
+
+
+def test_run_remember_command_indexes_new_memory(monkeypatch, tmp_path: Path, capsys):
+    test_config = make_test_config(tmp_path)
+    calls = []
+
+    monkeypatch.setattr(
+        commands,
+        "add_memory",
+        lambda config, text: calls.append(("add", text)) or True,
+    )
+    monkeypatch.setattr(
+        commands,
+        "index_memory",
+        lambda config, text: calls.append(("index", text)) or True,
+    )
+
+    exit_code = commands.run_remember_command(test_config, "Remember this.")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert calls == [
+        ("add", "Remember this."),
+        ("index", "Remember this."),
+    ]
+    assert captured.out == "Memory saved.\n"
+
+
+def test_run_remember_command_does_not_index_duplicate(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    test_config = make_test_config(tmp_path)
+    index_called = False
+
+    monkeypatch.setattr(commands, "add_memory", lambda config, text: False)
+
+    def fake_index_memory(config, text):
+        nonlocal index_called
+        index_called = True
+        return True
+
+    monkeypatch.setattr(commands, "index_memory", fake_index_memory)
+
+    exit_code = commands.run_remember_command(test_config, "Existing memory.")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert index_called is False
+    assert captured.out == "Memory already exists.\n"
+
+
+def test_run_remember_command_skips_indexing_when_embeddings_are_disabled(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    base_config = make_test_config(tmp_path)
+    test_config = replace(
+        base_config,
+        embeddings=replace(base_config.embeddings, enabled=False),
+    )
+    index_called = False
+
+    monkeypatch.setattr(commands, "add_memory", lambda config, text: True)
+
+    def fake_index_memory(config, text):
+        nonlocal index_called
+        index_called = True
+        return True
+
+    monkeypatch.setattr(commands, "index_memory", fake_index_memory)
+
+    exit_code = commands.run_remember_command(test_config, "Remember this.")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert index_called is False
+    assert captured.out == "Memory saved.\n"
+
+
+def test_run_remember_command_warns_when_indexing_fails(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(commands, "add_memory", lambda config, text: True)
+
+    def broken_index_memory(config, text):
+        raise RuntimeError("embedding unavailable")
+
+    monkeypatch.setattr(commands, "index_memory", broken_index_memory)
+
+    exit_code = commands.run_remember_command(test_config, "Remember this.")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Memory saved." in captured.out
+    assert "Warning: Memory embedding failed: RuntimeError: embedding unavailable" in captured.out
+
+
+def test_run_remember_command_warns_when_indexing_cannot_store(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+):
+    test_config = make_test_config(tmp_path)
+
+    monkeypatch.setattr(commands, "add_memory", lambda config, text: True)
+    monkeypatch.setattr(commands, "index_memory", lambda config, text: False)
+
+    exit_code = commands.run_remember_command(test_config, "Remember this.")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Memory saved." in captured.out
+    assert "Warning: Memory was saved but could not be indexed." in captured.out
 
 
 def test_mind_forget_routes_to_forget_command(monkeypatch, tmp_path: Path):
