@@ -138,6 +138,9 @@ mind/runtime/confirmation.py   terminal confirmation callback for confirmed tool
 ```
 
 Runtime code may prompt the user. Tool registry code should not directly call `input()`.
+Normal chat starts with a base system prompt and refreshes memory context before
+each non-tool user turn, so semantic retrieval is based on the latest user input
+instead of a queryless session-start fallback.
 
 ### `mind/core/`
 

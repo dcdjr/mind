@@ -90,7 +90,7 @@ def test_run_chat_sends_user_message_to_model_and_prints_response(
     monkeypatch,
     tmp_path: Path,
 ):
-    """The chat loop should append a user message, call the model, and print the response."""
+    """The chat loop should refresh memory context, call the model, and print."""
     test_config = make_test_config(tmp_path)
 
     monkeypatch.setattr(
@@ -104,7 +104,7 @@ def test_run_chat_sends_user_message_to_model_and_prints_response(
 
     def fake_build_initial_chat_messages(config, workspace_context=None, memory_context=None):
         assert config == test_config
-        assert memory_context == "Saved memory context."
+        assert memory_context is None
 
         return [{"role": "system", "content": "system prompt"}]
 
@@ -142,6 +142,54 @@ def test_run_chat_sends_user_message_to_model_and_prints_response(
 
     assert "fake assistant response" in captured.out
     assert extracted_turns == [("hello", "fake assistant response")]
+
+
+def test_run_chat_refreshes_memory_context_for_each_user_turn(
+    monkeypatch,
+    tmp_path: Path,
+):
+    """Normal chat should retrieve saved-memory context using the latest input."""
+    test_config = make_test_config(tmp_path)
+    context_queries = []
+    system_prompts = []
+
+    def fake_build_context(config, **kwargs):
+        context_queries.append(kwargs.get("query"))
+        return ContextBundle(
+            memory_context=f"Memory for {kwargs.get('query')}",
+            workspace_context=None,
+        )
+
+    def fake_build_system_prompt(config, workspace_context=None, memory_context=None):
+        system_prompts.append(memory_context)
+        return f"system prompt with {memory_context}"
+
+    def fake_complete(config, messages):
+        assert messages[0] == {
+            "role": "system",
+            "content": "system prompt with Memory for hello",
+        }
+        return "fake assistant response"
+
+    monkeypatch.setattr(chat, "build_context", fake_build_context)
+    monkeypatch.setattr(chat, "build_system_prompt", fake_build_system_prompt)
+    monkeypatch.setattr(
+        chat,
+        "build_initial_chat_messages",
+        lambda config, workspace_context=None, memory_context=None: [
+            {"role": "system", "content": "initial system prompt"}
+        ],
+    )
+    monkeypatch.setattr(chat, "complete", fake_complete)
+    monkeypatch.setattr(chat, "maybe_extract_and_store_memories", lambda *args: None)
+
+    inputs = iter(["hello", "/quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(inputs))
+
+    chat.run_chat(test_config)
+
+    assert context_queries == ["hello"]
+    assert system_prompts == ["Memory for hello"]
 
 
 def test_maybe_extract_and_store_memories_saves_extracted_memories(

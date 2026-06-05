@@ -245,6 +245,11 @@ Start an interactive chat session:
 mind chat
 ```
 
+In normal chat, Mind starts with a base system message and refreshes saved-memory
+context before each user turn. That means semantic memory retrieval uses the
+latest message as the query instead of injecting unrelated recent memories at
+session startup.
+
 Start chat using the configured uncensored model:
 
 ```bash
@@ -256,6 +261,9 @@ Start chat with tools enabled:
 ```bash
 mind chat --tools
 ```
+
+Tool-enabled chat sends each turn through the bounded agent loop and preserves
+prior turns as agent context.
 
 Start chat with tools and trace output enabled:
 
@@ -440,7 +448,7 @@ Memories are stored with normalized text for deduplication plus metadata for kin
 
 The database also has a `memory_embeddings` table keyed by memory id and embedding model so semantic retrieval can store vectors without duplicating memory rows. The single-memory indexing helper resolves an existing memory ID, generates its embedding, and stores the vector using the configured model. When embeddings are enabled, `mind remember` indexes newly saved manual memories immediately. Embedding failures do not discard the saved memory; Mind prints a warning and `mind memory backfill` remains the recovery path. Embedding helpers can also store or replace one vector per memory/model pair, list active memories with vectors, and list active memories still missing vectors for a specific model. Retrieval embeds the query with the configured embedding model, ranks stored memory vectors by cosine similarity, and returns the highest-ranked memory IDs and text. Manual memories are saved as `source = "manual"`, `status = "confirmed"`, and `confidence = 1.0`.
 
-During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`. When embeddings are enabled, newly stored extracted memories are indexed immediately; duplicate memories are skipped, and indexing failures do not interrupt chat. Extracted memories can then be injected into future prompts when `inject_context` is enabled. Query-specific prompts prefer semantic retrieval when embeddings are enabled, and fall back to recent memories if retrieval is unavailable.
+During chat, Mind can also attempt experimental automatic memory extraction. After each assistant response, Mind asks the local model to extract durable facts from the conversation turn. Extracted memories are stored as `source = "chat_auto"`, `status = "auto_extracted"`, and `confidence = 0.6`. When embeddings are enabled, newly stored extracted memories are indexed immediately; duplicate memories are skipped, and indexing failures do not interrupt chat. Extracted memories can then be injected into future prompts when `inject_context` is enabled. Normal chat starts with a base system message, then refreshes saved-memory context before each user turn using that turn's text as the retrieval query. Query-specific prompts prefer semantic retrieval when embeddings are enabled, and fall back to recent memories if retrieval is unavailable.
 
 Automatic memory extraction and prompt injection are controlled separately by:
 

@@ -90,12 +90,7 @@ def run_chat(
     model: str | None = None,
 ) -> None:
     """Run an interactive terminal chat session with optional tool use."""
-    context = build_context(config)
-
-    messages = build_initial_chat_messages(
-        config,
-        memory_context=context.memory_context,
-    )
+    messages = build_initial_chat_messages(config)
 
     agent_history: list[dict[str, str]] = []
 
