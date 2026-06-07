@@ -172,6 +172,35 @@ def test_run_agent_returns_final_answer(monkeypatch, tmp_path: Path):
     assert result == "Final answer."
 
 
+def test_run_agent_structured_returns_result_metadata(monkeypatch, tmp_path: Path):
+    config = make_test_config(tmp_path)
+
+    def fake_complete(config, messages, model=None):
+        assert model == "dolphin3:8b"
+        return '{"type": "final", "answer": "Final answer."}'
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+
+    result = agent.run_agent_structured(
+        config,
+        "hello",
+        trace=True,
+        model="dolphin3:8b",
+    )
+
+    assert result.final_answer == "Final answer."
+    assert result.status == "completed"
+    assert result.error is None
+    assert result.model == "dolphin3:8b"
+    assert result.tool_calls == 0
+    assert result.model_calls == 1
+    assert result.protocol_repairs == 0
+    assert result.trace is not None
+    assert result.render() == "Final answer."
+    assert "Agent trace:" in result.render(include_trace=True)
+    assert "Final answer:\nFinal answer." in result.render(include_trace=True)
+
+
 def test_run_agent_uses_selected_model(monkeypatch, tmp_path: Path):
     """run_agent should pass an explicit model selection to each model call."""
     config = make_test_config(tmp_path)
@@ -696,6 +725,40 @@ def test_run_agent_stops_when_model_repeats_same_failing_tool_call(
         "Error: Agent repeated the same failing tool call instead of recovering."
     )
     assert tool_calls == [("workspace.read_file", {"path": "missing.txt"})]
+
+
+def test_run_agent_structured_marks_repeated_failing_tool_call_failed(
+    monkeypatch,
+    tmp_path: Path,
+):
+    config = make_test_config(tmp_path)
+    repeated_call = (
+        '{"type": "tool_call", "tool": "workspace.read_file", '
+        '"args": {"path": "missing.txt"}}'
+    )
+    responses = iter([repeated_call, repeated_call])
+
+    def fake_complete(config, messages):
+        return next(responses)
+
+    def fake_run_tool(config, tool_name, args, confirm=None):
+        return ToolResult.failure_result(
+            tool_name=tool_name,
+            error="Error: File not found.",
+        )
+
+    monkeypatch.setattr(agent, "complete", fake_complete)
+    monkeypatch.setattr(agent, "run_tool", fake_run_tool)
+
+    result = agent.run_agent_structured(config, "read missing file")
+
+    assert result.status == "failed"
+    assert result.error == (
+        "Error: Agent repeated the same failing tool call instead of recovering."
+    )
+    assert result.final_answer == result.error
+    assert result.model_calls == 2
+    assert result.tool_calls == 2
 
 
 def test_protocol_repair_message_does_not_include_concrete_tool_paths():

@@ -10,7 +10,8 @@ from mind.agent.protocol import (
     ToolCall,
     parse_agent_action,
 )
-from mind.agent.trace import AgentTrace, format_traced_response
+from mind.agent.result import AgentRunResult, AgentRunStatus
+from mind.agent.trace import AgentTrace
 from mind.core.config import Config
 from mind.core.context import build_context
 from mind.core.llm import complete
@@ -49,7 +50,7 @@ PROTOCOL_REPAIR_MESSAGE = (
 )
 
 
-def run_agent(
+def run_agent_structured(
     config: Config,
     user_prompt: str,
     max_steps: int = MAX_AGENT_STEPS,
@@ -59,7 +60,7 @@ def run_agent(
     model: str | None = None,
     max_protocol_repairs: int = MAX_PROTOCOL_REPAIRS,
     max_agent_model_calls: int = MAX_AGENT_MODEL_CALLS,
-) -> str:
+) -> AgentRunResult:
     """Run a bounded agent loop with optional prior conversation context."""
     context = build_context(config, query=user_prompt)
 
@@ -94,12 +95,22 @@ def run_agent(
     model_calls = 0
     step_number = 1
 
-    def finish(answer: str) -> str:
-        """Attach trace output to an answer when tracing is enabled."""
-        if agent_trace is None:
-            return answer
-
-        return format_traced_response(answer, agent_trace)
+    def finish(
+        answer: str,
+        status: AgentRunStatus,
+        error: str | None = None,
+    ) -> AgentRunResult:
+        """Build the structured result with the current run counters."""
+        return AgentRunResult(
+            final_answer=answer,
+            status=status,
+            error=error,
+            trace=agent_trace,
+            model=model or config.model.default,
+            tool_calls=tool_steps,
+            model_calls=model_calls,
+            protocol_repairs=protocol_repairs,
+        )
 
     while tool_steps < max_steps:
         if model_calls >= max_agent_model_calls:
@@ -111,7 +122,7 @@ def run_agent(
             if agent_trace is not None:
                 agent_trace.record_error(step_number, message)
 
-            return finish(message)
+            return finish(message, status="failed", error=message)
 
         model_calls += 1
 
@@ -126,7 +137,7 @@ def run_agent(
             if agent_trace is not None:
                 agent_trace.record_error(step_number, message)
 
-            return finish(message)
+            return finish(message, status="failed", error=message)
 
         action = parse_agent_action(raw_response)
 
@@ -161,22 +172,28 @@ def run_agent(
             if agent_trace is not None:
                 agent_trace.record_error(step_number, action.message)
 
-            return finish(action.message)
+            return finish(action.message, status="failed", error=action.message)
 
         if isinstance(action, FinalAnswer):
             if agent_trace is not None:
                 agent_trace.record_final(step_number, action.answer)
 
-            return finish(action.answer)
+            return finish(action.answer, status="completed")
 
         if isinstance(action, ToolCall):
             tool_steps += 1
 
             tool_key = (action.tool, json.dumps(action.args, sort_keys=True))
             if tool_key in failed_tool_calls:
-                return finish(
-                    "Error: Agent repeated the same failing tool call instead of recovering."
+                message = (
+                    "Error: Agent repeated the same failing tool call instead "
+                    "of recovering."
                 )
+
+                if agent_trace is not None:
+                    agent_trace.record_error(step_number, message)
+
+                return finish(message, status="failed", error=message)
 
             # run_tool is the permission/confirmation boundary. The agent loop
             # never calls tool functions directly, even after protocol parsing.
@@ -231,4 +248,30 @@ def run_agent(
     if agent_trace is not None:
         agent_trace.record_error(step_number, message)
 
-    return finish(message)
+    return finish(message, status="failed", error=message)
+
+
+def run_agent(
+    config: Config,
+    user_prompt: str,
+    max_steps: int = MAX_AGENT_STEPS,
+    trace: bool = False,
+    prior_messages: list[dict[str, str]] | None = None,
+    confirm: Callable[[ToolSpec], bool] | None = None,
+    model: str | None = None,
+    max_protocol_repairs: int = MAX_PROTOCOL_REPAIRS,
+    max_agent_model_calls: int = MAX_AGENT_MODEL_CALLS,
+) -> str:
+    """Run the agent loop and render its result for terminal callers."""
+    result = run_agent_structured(
+        config,
+        user_prompt,
+        max_steps,
+        trace,
+        prior_messages,
+        confirm,
+        model,
+        max_protocol_repairs,
+        max_agent_model_calls,
+    )
+    return result.render(include_trace=trace)
